@@ -91,14 +91,13 @@
           </div>
 
           <div class="lifetime-stats" id="lifetimeStats">
-            現在の声：<strong id="currentVoiceBadge">VOICEVOX（春日部つむぎ）</strong> ｜ 見破り率：<strong id="statAccuracy">--%</strong>
+            現在の声：<strong id="currentVoiceBadge">Edge Neural（七海・姉調）</strong> ｜ 見破り率：<strong id="statAccuracy">--%</strong>
           </div>
         </div>
       </section>
 
       <!-- ===== 2. ギャルゲー/ノベル風プレイ画面（下部3行ウィンドウ＋上部ポップアップ選択肢） ===== -->
       <section class="vn-play-layer hidden" id="quizScreen">
-        <!-- 選択肢ポップアップ（選ぶときだけテキストウィンドウの上に浮かび上がる） -->
         <div class="floating-choices hidden" id="choiceContainer">
           <button class="vn-choice-bar hallu-choice" id="btnChooseHallucination">
             <span class="choice-icon">🚨</span>
@@ -116,7 +115,6 @@
           </button>
         </div>
 
-        <!-- 画面下部のスッキリ3行テキストウィンドウ -->
         <div class="vn-textbox-wrap">
           <div class="vn-textbox-top-row">
             <div class="vn-nameplate">
@@ -132,7 +130,6 @@
             </div>
           </div>
 
-          <!-- 3行固定の透過メッセージボックス本体 -->
           <div class="vn-textbox" id="dialogueBody">
             <div class="vn-point-line hidden" id="pointChip"></div>
             <p class="vn-dialogue-text" id="dialogueText"></p>
@@ -191,102 +188,140 @@
         </div>
 
         <div class="modal-body">
-          <!-- 🎧 ボイスモデル聴き比べ＆選択セクション -->
           <div class="setting-group">
-            <label class="setting-label">🎧 お姉ちゃんの声サンプル聴き比べ（タップで試聴＆選択）</label>
+            <label class="setting-label">🎧 Microsoft Neural ＆ Gemini AI ボイス聴き比べ</label>
             <p class="setting-help">
-              同じセリフ「ねえ知ってる？ ウォンバットのうんちって…」を各音声モデルで聴き比べられます！気に入った声をタップするとそのままゲームに適用されます。
+              マイクロソフトの別キャラクター（Copilot系の多言語ニューラル女性音声＆七海の声質バリエーション）と、Gemini APIの複数ボイスを追加しました！
             </p>
 
             <div class="voice-sample-grid" id="voiceSampleGrid">
-              <!-- ① VOICEVOX 春日部つむぎ -->
-              <button type="button" class="sample-card active" data-engine="voicevox" data-speaker="8" data-sample="assets/voice_samples/voicevox_tsumugi.mp3" data-label="VOICEVOX（春日部つむぎ）">
+              <!-- ===== Microsoft Edge Neural シリーズ（完全無料） ===== -->
+              <button type="button" class="sample-card active" data-engine="edge-neural" data-edge-voice="nanami_sister" data-sample="assets/voice_samples/edge_nanami_sister.mp3" data-label="MS 七海（元気なお姉ちゃん調）">
                 <div class="sample-card-top">
-                  <span class="sample-badge badge-vv">人気No.1 アニメ声</span>
+                  <span class="sample-badge badge-edge">Microsoft・おすすめ</span>
+                  <span class="sample-play-icon">▶️ 試聴</span>
+                </div>
+                <div class="sample-name">七海 Nanami（元気なお姉ちゃん調）</div>
+                <div class="sample-desc">明るく弾んだテンポと少し高めの声質（+14Hz）。お姉ちゃん感バッチリ！</div>
+              </button>
+
+              <button type="button" class="sample-card" data-engine="edge-neural" data-edge-voice="nanami_cute" data-sample="assets/voice_samples/edge_nanami_cute.mp3" data-label="MS 七海（甘め・可愛い高め）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-edge">Microsoft・可愛い系</span>
+                  <span class="sample-play-icon">▶️ 試聴</span>
+                </div>
+                <div class="sample-name">七海 Nanami（甘め・キュート高め調）</div>
+                <div class="sample-desc">さらにピッチを高め（+22Hz）にした、甘え上手で可愛いアニメ寄りボイス！</div>
+              </button>
+
+              <button type="button" class="sample-card" data-engine="edge-neural" data-edge-voice="nanami_std" data-sample="assets/voice_samples/edge_nanami.mp3" data-label="MS 七海（ナチュラル標準）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-edge">Microsoft・自然</span>
+                  <span class="sample-play-icon">▶️ 試聴</span>
+                </div>
+                <div class="sample-name">七海 Nanami（ナチュラル標準）</div>
+                <div class="sample-desc">一番自然で落ち着きのある標準トーンの七海ボイス。</div>
+              </button>
+
+              <button type="button" class="sample-card" data-engine="edge-neural" data-edge-voice="nanami_cool" data-sample="assets/voice_samples/edge_nanami_cool.mp3" data-label="MS 七海（大人のお姉さん調）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-edge">Microsoft・大人系</span>
+                  <span class="sample-play-icon">▶️ 試聴</span>
+                </div>
+                <div class="sample-name">七海 Nanami（落ち着いた大人のお姉さん調）</div>
+                <div class="sample-desc">ピッチを少し下げた（-7Hz）、知的で落ち着いた年上お姉さんトーン。</div>
+              </button>
+
+              <button type="button" class="sample-card" data-engine="edge-neural" data-edge-voice="ava_multi" data-sample="assets/voice_samples/edge_ava_multi.mp3" data-label="MS Ava（Copilot系・柔らかめ）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-edge">Microsoft Copilot音声</span>
+                  <span class="sample-play-icon">▶️ 試聴</span>
+                </div>
+                <div class="sample-name">Ava Multilingual（Copilot系・優しい声）</div>
+                <div class="sample-desc">Microsoft最新の多言語ニューラル女性音声。息遣いがリアルで柔らかい声質！</div>
+              </button>
+
+              <button type="button" class="sample-card" data-engine="edge-neural" data-edge-voice="emma_multi" data-sample="assets/voice_samples/edge_emma_multi.mp3" data-label="MS Emma（Copilot系・明るめ）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-edge">Microsoft Copilot音声</span>
+                  <span class="sample-play-icon">▶️ 試聴</span>
+                </div>
+                <div class="sample-name">Emma Multilingual（Copilot系・ハキハキ）</div>
+                <div class="sample-desc">クリアで明るい会話特化型の多言語ニューラルボイス。</div>
+              </button>
+
+              <button type="button" class="sample-card" data-engine="edge-neural" data-edge-voice="seraphina_multi" data-sample="assets/voice_samples/edge_seraphina_multi.mp3" data-label="MS Seraphina（透明感ボイス）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-edge">Microsoft 多言語</span>
+                  <span class="sample-play-icon">▶️ 試聴</span>
+                </div>
+                <div class="sample-name">Seraphina Multilingual（透明感お姉さん）</div>
+                <div class="sample-desc">少しハーフっぽさのある、透明感と艶のあるお姉さんボイス。</div>
+              </button>
+
+              <button type="button" class="sample-card" data-engine="edge-neural" data-edge-voice="vivienne_multi" data-sample="assets/voice_samples/edge_vivienne_multi.mp3" data-label="MS Vivienne（上品お姉さん）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-edge">Microsoft 多言語</span>
+                  <span class="sample-play-icon">▶️ 試聴</span>
+                </div>
+                <div class="sample-name">Vivienne Multilingual（上品・おっとり系）</div>
+                <div class="sample-desc">落ち着いたトーンでしっとりと話す上品なお姉さんボイス。</div>
+              </button>
+
+              <!-- ===== Gemini 2.5 Flash TTS シリーズ（APIキー使用・演技指導付き） ===== -->
+              <button type="button" class="sample-card" data-engine="gemini-tts" data-gemini-voice="Kore" data-sample="" data-label="Gemini TTS（Kore・お姉さん）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-gemini">Gemini API・演技指導</span>
+                  <span class="sample-play-icon">▶️ AI試聴</span>
+                </div>
+                <div class="sample-name">Gemini 2.5 TTS - Kore（王道お姉さん）</div>
+                <div class="sample-desc">「ドヤ顔」「てへぺろ」等の感情指示に合わせて演技する一番人気の女性声！</div>
+              </button>
+
+              <button type="button" class="sample-card" data-engine="gemini-tts" data-gemini-voice="Aoede" data-sample="" data-label="Gemini TTS（Aoede・華やか）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-gemini">Gemini API・演技指導</span>
+                  <span class="sample-play-icon">▶️ AI試聴</span>
+                </div>
+                <div class="sample-name">Gemini 2.5 TTS - Aoede（明るく華やか）</div>
+                <div class="sample-desc">表情豊かでテンション高めのお姉ちゃん演技が得意なAIボイス！</div>
+              </button>
+
+              <button type="button" class="sample-card" data-engine="gemini-tts" data-gemini-voice="Leda" data-sample="" data-label="Gemini TTS（Leda・可愛い系）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-gemini">Gemini API・演技指導</span>
+                  <span class="sample-play-icon">▶️ AI試聴</span>
+                </div>
+                <div class="sample-name">Gemini 2.5 TTS - Leda（甘め・柔らかめ）</div>
+                <div class="sample-desc">優しくて可愛らしい声質で感情たっぷりに喋るAIボイス！</div>
+              </button>
+
+              <button type="button" class="sample-card" data-engine="gemini-tts" data-gemini-voice="Zephyr" data-sample="" data-label="Gemini TTS（Zephyr・爽やか）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-gemini">Gemini API・演技指導</span>
+                  <span class="sample-play-icon">▶️ AI試聴</span>
+                </div>
+                <div class="sample-name">Gemini 2.5 TTS - Zephyr（ハキハキ爽やか）</div>
+                <div class="sample-desc">聞き取りやすくテンポの良い、元気なお姉さんAIボイス！</div>
+              </button>
+
+              <!-- ===== VOICEVOX シリーズ ===== -->
+              <button type="button" class="sample-card" data-engine="voicevox" data-speaker="8" data-sample="assets/voice_samples/voicevox_tsumugi.mp3" data-label="VOICEVOX（春日部つむぎ）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-vv">VOICEVOX</span>
                   <span class="sample-play-icon">▶️ 試聴</span>
                 </div>
                 <div class="sample-name">春日部つむぎ（VOICEVOX）</div>
-                <div class="sample-desc">元気でちょっとギャルっぽい、愛嬌抜群のお姉ちゃん声！（無料）</div>
+                <div class="sample-desc">元気な埼玉ギャル風アニメボイス</div>
               </button>
 
-              <!-- ② VOICEVOX 四国めたん（ノーマル） -->
-              <button type="button" class="sample-card" data-engine="voicevox" data-speaker="2" data-sample="assets/voice_samples/voicevox_metan.mp3" data-label="VOICEVOX（四国めたん）">
-                <div class="sample-card-top">
-                  <span class="sample-badge badge-vv">感情スタイル自動変化</span>
-                  <span class="sample-play-icon">▶️ 試聴</span>
-                </div>
-                <div class="sample-name">四国めたん・標準（VOICEVOX）</div>
-                <div class="sample-desc">ハキハキした王道ヒロイン声。表情に合わせて「あまあま」「ツンツン」に自動変化！</div>
-              </button>
-
-              <!-- ③ VOICEVOX 四国めたん（あまあま） -->
-              <button type="button" class="sample-card" data-engine="voicevox" data-speaker="0" data-sample="assets/voice_samples/voicevox_metan_ama.mp3" data-label="VOICEVOX（めたん・あまあま）">
-                <div class="sample-card-top">
-                  <span class="sample-badge badge-vv">あまあまボイス</span>
-                  <span class="sample-play-icon">▶️ 試聴</span>
-                </div>
-                <div class="sample-name">四国めたん・あまあま（VOICEVOX）</div>
-                <div class="sample-desc">甘やかしてくれる優しいお姉ちゃん声でずっと喋ります♪</div>
-              </button>
-
-              <!-- ④ VOICEVOX もち子さん -->
               <button type="button" class="sample-card" data-engine="voicevox" data-speaker="20" data-sample="assets/voice_samples/voicevox_mochiko.mp3" data-label="VOICEVOX（もち子さん）">
                 <div class="sample-card-top">
-                  <span class="sample-badge badge-vv">清楚・お姉さん</span>
+                  <span class="sample-badge badge-vv">VOICEVOX</span>
                   <span class="sample-play-icon">▶️ 試聴</span>
                 </div>
                 <div class="sample-name">もち子さん（VOICEVOX）</div>
-                <div class="sample-desc">柔らかくて清楚な、まさに「優しいお姉さん」なアニメボイス！</div>
-              </button>
-
-              <!-- ⑤ VOICEVOX No.7 -->
-              <button type="button" class="sample-card" data-engine="voicevox" data-speaker="29" data-sample="assets/voice_samples/voicevox_no7.mp3" data-label="VOICEVOX（No.7）">
-                <div class="sample-card-top">
-                  <span class="sample-badge badge-vv">大人のお姉さん</span>
-                  <span class="sample-play-icon">▶️ 試聴</span>
-                </div>
-                <div class="sample-name">No.7 セブン（VOICEVOX）</div>
-                <div class="sample-desc">落ち着きと艶のある、知的で大人っぽいお姉さんボイス！</div>
-              </button>
-
-              <!-- ⑥ Edge Neural 七海（お姉ちゃん調） -->
-              <button type="button" class="sample-card" data-engine="edge-neural" data-speaker="0" data-sample="assets/voice_samples/edge_nanami_sister.mp3" data-label="Edge Neural（七海・姉調）">
-                <div class="sample-card-top">
-                  <span class="sample-badge badge-edge">完全無料・爆速</span>
-                  <span class="sample-play-icon">▶️ 試聴</span>
-                </div>
-                <div class="sample-name">Microsoft 七海 Neural（高めお姉ちゃん調）</div>
-                <div class="sample-desc">棒読み感のない滑らかなニューラル音声（ピッチ＆テンポ調整版）</div>
-              </button>
-
-              <!-- ⑦ Edge Neural 七海（ナチュラル） -->
-              <button type="button" class="sample-card" data-engine="edge-neural" data-speaker="1" data-sample="assets/voice_samples/edge_nanami.mp3" data-label="Edge Neural（七海・標準）">
-                <div class="sample-card-top">
-                  <span class="sample-badge badge-edge">完全無料・自然</span>
-                  <span class="sample-play-icon">▶️ 試聴</span>
-                </div>
-                <div class="sample-name">Microsoft 七海 Neural（ナチュラル）</div>
-                <div class="sample-desc">ニュースやナレーションのように聞き取りやすく自然な女性の声</div>
-              </button>
-
-              <!-- ⑧ Gemini 2.5 Flash TTS -->
-              <button type="button" class="sample-card" data-engine="gemini-tts" data-gemini-voice="Kore" data-sample="" data-label="Gemini 2.5 TTS（Kore）">
-                <div class="sample-card-top">
-                  <span class="sample-badge badge-gemini">AI演技指導対応</span>
-                  <span class="sample-play-icon">▶️ AI試聴</span>
-                </div>
-                <div class="sample-name">Gemini 2.5 Flash TTS（要APIキー）</div>
-                <div class="sample-desc">Gemini APIキーを使って「ドヤ顔」「てへぺろ」等の演技指導付きでリアルタイム発話！</div>
-              </button>
-
-              <!-- ⑨ ブラウザ標準 Web Speech -->
-              <button type="button" class="sample-card" data-engine="webspeech" data-speaker="0" data-sample="" data-label="ブラウザ標準音声">
-                <div class="sample-card-top">
-                  <span class="sample-badge badge-web">通信ゼロ</span>
-                  <span class="sample-play-icon">▶️ 試聴</span>
-                </div>
-                <div class="sample-name">ブラウザ内蔵 Web Speech API</div>
-                <div class="sample-desc">スマホ・PC内蔵の標準合成音声（端末によって声質が変わります）</div>
+                <div class="sample-desc">清楚なアニメお姉さんボイス</div>
               </button>
             </div>
           </div>
