@@ -31,7 +31,6 @@
 
     charViewport: document.getElementById("charViewport"),
     charLayers: document.querySelectorAll(".char-layer"),
-    emotionBubble: document.getElementById("emotionBubble"),
     judgeStamp: document.getElementById("judgeStamp"),
 
     titleScreen: document.getElementById("titleScreen"),
@@ -74,19 +73,6 @@
     chkVoice: document.getElementById("chkVoice"),
     chkSE: document.getElementById("chkSE"),
     btnSaveSettings: document.getElementById("btnSaveSettings")
-  };
-
-  const EXPR_META = {
-    normal:   { bubble: "☝️ 自信満々" },
-    doya:     { bubble: "😏 ドヤァ…！" },
-    tehe:     { bubble: "😜 てへぺろ♪" },
-    happy:    { bubble: "✨ やったね♪" },
-    pout:     { bubble: "😤 むーっ！" },
-    shock:    { bubble: "😱 えっ嘘ぉ！？" },
-    shy:      { bubble: "😳 恥ずかしい〜！" },
-    cry:      { bubble: "🥺 うるうる…" },
-    confused: { bubble: "🤔 あれれ〜？" },
-    wink:     { bubble: "😉 えへへ♪" }
   };
 
   function init() {
@@ -207,9 +193,6 @@
     el.charLayers.forEach(img => {
       img.classList.toggle("active", img.dataset.expr === expr);
     });
-
-    const meta = EXPR_META[expr] || EXPR_META.normal;
-    el.emotionBubble.textContent = meta.bubble;
 
     el.charViewport.classList.remove("anim-happy", "anim-shock");
     if (animateType) {

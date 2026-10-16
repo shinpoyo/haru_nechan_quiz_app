@@ -415,16 +415,6 @@ html, body {
   flex-shrink: 0;
 }
 
-.vn-mood-badge {
-  background: rgba(255, 255, 255, 0.24);
-  font-size: 0.68rem;
-  font-weight: 800;
-  padding: 1px 6px;
-  border-radius: 999px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
 /* 判定バッジ（ネームプレート横にスリム表示） */
 .vn-judge-badge {
   padding: 2px 9px;
@@ -988,10 +978,6 @@ html, body {
   }
   .vn-speaker-name {
     font-size: 0.78rem;
-  }
-  .vn-mood-badge {
-    font-size: 0.62rem;
-    padding: 1px 5px;
   }
   .vn-judge-badge {
     font-size: 0.68rem;
