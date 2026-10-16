@@ -1,0 +1,17 @@
+{
+  "name": "はるしねーちゃん 〜お姉ちゃんの知ったかぶり見破りクイズ〜",
+  "short_name": "はるしねーちゃん",
+  "description": "自信満々にハルシネーション（もっともらしい嘘）とガチ雑学を話すお姉ちゃんを見破るノベル風クイズゲーム",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fff5f7",
+  "theme_color": "#ff6b9d",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "assets/haru_normal.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}
