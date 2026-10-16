@@ -1,9 +1,4 @@
-// はるしねーちゃん マルチ音声エンジン
-// 対応エンジン:
-// 1. "voicevox"    : VOICEVOX (春日部つむぎ / 四国めたん / もち子さん / No.7)
-// 2. "gemini-tts"  : Gemini 2.5 Flash Preview TTS (演技指導プロンプト付きAI音声)
-// 3. "edge-neural" : Edge Neural TTS (ja-JP-NanamiNeural 事前生成高音質音声)
-// 4. "webspeech"   : ブラウザ標準 Web Speech API
+// はるしねーちゃん マルチ音声エンジン（IndexedDB永久保存＆Gemini 2.5 Pro/Flash TTS対応）
 
 class HaruSoundEngine {
   constructor() {
@@ -11,11 +6,12 @@ class HaruSoundEngine {
     this.seEnabled = localStorage.getItem("haru_se_enabled") !== "false";
     this.voiceEnabled = localStorage.getItem("haru_voice_enabled") !== "false";
 
-    // デフォルトをアニメ声の「voicevox（春日部つむぎ）」に設定
-    this.ttsEngine = localStorage.getItem("haru_tts_engine") || "voicevox";
-    this.voicevoxSpeaker = parseInt(localStorage.getItem("haru_vv_speaker") || "8", 10); // 8: 春日部つむぎ
+    // デフォルトを Aoede (Gemini TTS) + 七海(甘め)事前生成フォールバックに設定
+    this.ttsEngine = localStorage.getItem("haru_tts_engine") || "gemini-tts";
+    this.geminiTtsModel = localStorage.getItem("haru_gemini_tts_model") || "gemini-2.5-pro-preview-tts";
+    this.geminiVoiceName = localStorage.getItem("haru_gemini_voice") || "Aoede";
+    this.voicevoxSpeaker = parseInt(localStorage.getItem("haru_vv_speaker") || "8", 10);
     this.voicevoxApiKey = localStorage.getItem("haru_vv_apikey") || "";
-    this.geminiVoiceName = localStorage.getItem("haru_gemini_voice") || "Kore";
 
     this.voicePitch = parseFloat(localStorage.getItem("haru_voice_pitch") || "1.12");
     this.voiceRate = parseFloat(localStorage.getItem("haru_voice_rate") || "1.06");
@@ -23,6 +19,48 @@ class HaruSoundEngine {
     this.currentAudio = null;
     this.audioCache = new Map();
     this.speakReqId = 0;
+    this.dbPromise = this.initIndexedDB();
+  }
+
+  // 生成したAI音声をブラウザ内に永久保存するIndexedDB
+  initIndexedDB() {
+    return new Promise((resolve) => {
+      if (!("indexedDB" in window)) {
+        resolve(null);
+        return;
+      }
+      const req = indexedDB.open("HaruVoiceCacheDB", 1);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains("voices")) {
+          db.createObjectStore("voices");
+        }
+      };
+      req.onsuccess = (e) => resolve(e.target.result);
+      req.onerror = () => resolve(null);
+    });
+  }
+
+  async getCachedBlob(key) {
+    const db = await this.dbPromise;
+    if (!db) return null;
+    return new Promise((resolve) => {
+      const tx = db.transaction("voices", "readonly");
+      const req = tx.objectStore("voices").get(key);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  }
+
+  async saveCachedBlob(key, blob) {
+    const db = await this.dbPromise;
+    if (!db) return;
+    return new Promise((resolve) => {
+      const tx = db.transaction("voices", "readwrite");
+      tx.objectStore("voices").put(blob, key);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+    });
   }
 
   initContext() {
@@ -173,7 +211,6 @@ class HaruSoundEngine {
     });
   }
 
-  // ===== 音声読み上げメインエントリ =====
   cleanTextForSpeech(text) {
     return text
       .replace(/【.*?】/g, "")
@@ -195,7 +232,6 @@ class HaruSoundEngine {
     }
   }
 
-  // サンプル音声ファイルまたはURLを直接再生
   playAudioUrl(url) {
     this.stopSpeak();
     const audio = new Audio(url);
@@ -204,7 +240,26 @@ class HaruSoundEngine {
     return audio;
   }
 
-  // 事前収録ボイスがあれば優先再生（qId: "q01" など, part: "q"|"h"|"c"|"w"）
+  async tryPlayFile(path, reqId) {
+    return new Promise((resolve) => {
+      if (reqId !== this.speakReqId) {
+        resolve(true);
+        return;
+      }
+      const audio = new Audio(path);
+      audio.oncanplaythrough = () => {
+        if (reqId !== this.speakReqId) {
+          resolve(true);
+          return;
+        }
+        this.currentAudio = audio;
+        audio.play().then(() => resolve(true)).catch(() => resolve(false));
+      };
+      audio.onerror = () => resolve(false);
+    });
+  }
+
+  // 音声再生メインエントリ
   async speak(text, mood = "normal", pregenKey = "") {
     if (!this.voiceEnabled) return;
     const cleanText = this.cleanTextForSpeech(text);
@@ -213,20 +268,13 @@ class HaruSoundEngine {
     this.stopSpeak();
     const reqId = this.speakReqId;
 
-    // 1. Edge Neural 事前生成モードかつ事前収録MP3が存在する場合
-    if (this.ttsEngine === "edge-neural" && pregenKey) {
-      const mp3Path = `assets/voices/${pregenKey}.mp3`;
-      try {
-        const audio = new Audio(mp3Path);
-        this.currentAudio = audio;
-        await audio.play();
-        return;
-      } catch (_) {
-        // ファイルが無い場合はフォールバック
-      }
+    // 1. 事前保存された Aoede 音声ファイルがあれば最優先で再生（待ち時間0秒・API消費0）
+    if (this.ttsEngine === "gemini-tts" && pregenKey) {
+      const playedAoedeFile = await this.tryPlayFile(`assets/voices_aoede/${pregenKey}.mp3`, reqId);
+      if (playedAoedeFile) return;
     }
 
-    // 2. Gemini 2.5 Flash Preview TTS モード
+    // 2. Gemini 2.5 Pro / Flash TTS モード（IndexedDB永久キャッシュ対応）
     if (this.ttsEngine === "gemini-tts") {
       const apiKey = (localStorage.getItem("haru_gemini_api_key") || "").trim();
       if (apiKey) {
@@ -235,35 +283,34 @@ class HaruSoundEngine {
       }
     }
 
-    // 3. VOICEVOX Web API モード
+    // 3. Edge Neural 事前生成ボイス（七海・甘め）があれば再生（APIキー未設定時の高音質バックアップ！）
+    if ((this.ttsEngine === "edge-neural" || this.ttsEngine === "gemini-tts") && pregenKey) {
+      const playedEdgeFile = await this.tryPlayFile(`assets/voices_nanami/${pregenKey}.mp3`, reqId);
+      if (playedEdgeFile) return;
+    }
+
+    // 4. VOICEVOX Web API モード
     if (this.ttsEngine === "voicevox") {
       const ok = await this.speakWithVoicevox(cleanText, mood, reqId);
       if (ok || reqId !== this.speakReqId) return;
     }
 
-    // 4. 事前収録MP3があればフォールバック再生（棒読み回避！）
+    // 5. 最終バックアップ: 七海(甘め)事前生成ファイル -> Web Speech API
     if (pregenKey) {
-      try {
-        const audio = new Audio(`assets/voices/${pregenKey}.mp3`);
-        this.currentAudio = audio;
-        await audio.play();
-        return;
-      } catch (_) {}
+      const playedFallback = await this.tryPlayFile(`assets/voices_nanami/${pregenKey}.mp3`, reqId);
+      if (playedFallback) return;
     }
 
-    // 5. 最終フォールバック: Web Speech API
     if (reqId === this.speakReqId) {
       this.speakWithWebSpeech(cleanText, mood);
     }
   }
 
-  // VOICEVOX Web API (tts.quest) による合成
   async speakWithVoicevox(cleanText, mood, reqId) {
     let speaker = this.voicevoxSpeaker;
-    // 四国めたん(2)選択時は感情に合わせてスタイル自動切替
     if (speaker === 2) {
-      if (mood === "tehe" || mood === "happy") speaker = 0; // あまあま
-      else if (mood === "pout") speaker = 6; // ツンツン
+      if (mood === "tehe" || mood === "happy") speaker = 0;
+      else if (mood === "pout") speaker = 6;
     }
 
     const cacheKey = `vv_${speaker}_${cleanText}`;
@@ -288,7 +335,6 @@ class HaruSoundEngine {
       const mp3Url = data.mp3StreamingUrl || data.mp3DownloadUrl;
       if (!mp3Url) return false;
 
-      // 音声生成完了をポーリング確認してから再生
       for (let i = 0; i < 12; i++) {
         if (reqId !== this.speakReqId) return true;
         const check = await fetch(mp3Url);
@@ -311,75 +357,96 @@ class HaruSoundEngine {
     return false;
   }
 
-  // Gemini 2.5 Flash Preview TTS による感情演技付き合成
+  // Gemini 2.5 Pro / Flash Preview TTS（IndexedDBへの永久保存付き）
   async speakWithGeminiTTS(cleanText, mood, apiKey, reqId) {
-    const voiceName = this.geminiVoiceName || "Kore";
-    const cacheKey = `gem_${voiceName}_${mood}_${cleanText}`;
+    const voiceName = this.geminiVoiceName || "Aoede";
+    const ttsModel = this.geminiTtsModel || "gemini-2.5-pro-preview-tts";
+    const cacheKey = `gem_${ttsModel}_${voiceName}_${mood}_${cleanText}`;
+
+    // メモリキャッシュ確認
     if (this.audioCache.has(cacheKey)) {
       if (reqId !== this.speakReqId) return true;
       this.playAudioUrl(this.audioCache.get(cacheKey));
       return true;
     }
 
-    const styleMap = {
-      normal: "明るく自信満々で可愛いお姉ちゃん口調で、自然な抑揚をつけて読み上げてください",
-      doya: "超ドヤ顔で得意げに、イタズラっぽく笑みを浮かべたお姉ちゃん口調で読み上げてください",
-      tehe: "嘘がバレて「てへぺろ♪」と可愛く照れ隠しするような弾んだお姉ちゃん口調で読み上げてください",
-      happy: "満面の笑顔で弟や妹を褒めるように、嬉しそうで華やかなお姉ちゃん口調で読み上げてください",
-      pout: "「むーっ！本当なのに！」とほっぺを膨らませて可愛く拗ねたお姉ちゃん口調で読み上げてください"
-    };
-    const styleInst = styleMap[mood] || styleMap.normal;
-
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${encodeURIComponent(apiKey)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: `${styleInst}：\n「${cleanText}」`
-                  }
-                ]
-              }
-            ],
-            generationConfig: {
-              responseModalities: ["AUDIO"],
-              speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: {
-                    voiceName: voiceName
-                  }
-                }
-              }
-            }
-          })
-        }
-      );
-
-      if (!res.ok) return false;
-      const data = await res.json();
-      const inlineData = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-      if (!inlineData || !inlineData.data) return false;
-
-      const wavBlob = this.pcmBase64ToWavBlob(inlineData.data, 24000);
-      const blobUrl = URL.createObjectURL(wavBlob);
+    // IndexedDB永久キャッシュ確認
+    const savedBlob = await this.getCachedBlob(cacheKey);
+    if (savedBlob) {
+      const blobUrl = URL.createObjectURL(savedBlob);
       this.audioCache.set(cacheKey, blobUrl);
-
       if (reqId === this.speakReqId) {
         this.playAudioUrl(blobUrl);
       }
       return true;
-    } catch (e) {
-      console.warn("Gemini TTS error:", e);
-      return false;
     }
+
+    const styleMap = {
+      normal: "明るく自信満々で愛嬌たっぷりの可愛いお姉ちゃん口調で、自然な息遣いと抑揚をつけて楽しそうに話してください",
+      doya: "「ふっふっふ、引っかかったね♪」という超ドヤ顔で得意げに、イタズラっぽく可愛いお姉ちゃん口調で話してください",
+      tehe: "嘘がバレて「えへへ、バレちゃった〜？」と可愛く照れ隠しするような、甘めで弾んだお姉ちゃん口調で話してください",
+      happy: "満面の笑顔で弟や妹を褒めるように、嬉しそうで華やかなお姉ちゃん口調で話してください",
+      pout: "「むーっ！今回は本当なのに！」とほっぺを膨らませて可愛く拗ねたお姉ちゃん口調で話してください"
+    };
+    const styleInst = styleMap[mood] || styleMap.normal;
+
+    // Proモデルでエラーまたはクォータ制限の場合は自動でFlashモデルにフォールバック
+    const modelsToTry = ttsModel.includes("pro")
+      ? ["gemini-2.5-pro-preview-tts", "gemini-2.5-flash-preview-tts"]
+      : ["gemini-2.5-flash-preview-tts"];
+
+    for (const modelName of modelsToTry) {
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [
+                {
+                  parts: [
+                    {
+                      text: `${styleInst}：\n「${cleanText}」`
+                    }
+                  ]
+                }
+              ],
+              generationConfig: {
+                responseModalities: ["AUDIO"],
+                speechConfig: {
+                  voiceConfig: {
+                    prebuiltVoiceConfig: {
+                      voiceName: voiceName
+                    }
+                  }
+                }
+              }
+            })
+          }
+        );
+
+        if (!res.ok) continue;
+        const data = await res.json();
+        const inlineData = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+        if (!inlineData || !inlineData.data) continue;
+
+        const wavBlob = this.pcmBase64ToWavBlob(inlineData.data, 24000);
+        await this.saveCachedBlob(cacheKey, wavBlob);
+        const blobUrl = URL.createObjectURL(wavBlob);
+        this.audioCache.set(cacheKey, blobUrl);
+
+        if (reqId === this.speakReqId) {
+          this.playAudioUrl(blobUrl);
+        }
+        return true;
+      } catch (e) {
+        console.warn(`Gemini TTS (${modelName}) error:`, e);
+      }
+    }
+    return false;
   }
 
-  // Gemini TTS の Base64 Linear16 PCM (24kHz, mono) を WAV Blob に変換
   pcmBase64ToWavBlob(base64Pcm, sampleRate = 24000) {
     const binaryStr = atob(base64Pcm);
     const pcmLen = binaryStr.length;
@@ -396,13 +463,13 @@ class HaruSoundEngine {
     view.setUint32(4, 36 + pcmLen, true);
     writeStr(8, "WAVE");
     writeStr(12, "fmt ");
-    view.setUint32(16, 16, true); // PCM chunk size
-    view.setUint16(20, 1, true);  // PCM format
-    view.setUint16(22, 1, true);  // 1 channel (mono)
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
     view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * 2, true); // byte rate
-    view.setUint16(32, 2, true);  // block align
-    view.setUint16(34, 16, true); // bits per sample
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
     writeStr(36, "data");
     view.setUint32(40, pcmLen, true);
 
@@ -414,7 +481,6 @@ class HaruSoundEngine {
     return new Blob([wavBuffer], { type: "audio/wav" });
   }
 
-  // ブラウザ標準 Web Speech API
   speakWithWebSpeech(cleanText, mood = "normal") {
     if (!("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();

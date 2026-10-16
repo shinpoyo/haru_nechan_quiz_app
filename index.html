@@ -195,23 +195,43 @@
             </p>
 
             <div class="voice-sample-grid" id="voiceSampleGrid">
-              <!-- ===== Microsoft Edge Neural シリーズ（完全無料） ===== -->
-              <button type="button" class="sample-card active" data-engine="edge-neural" data-edge-voice="nanami_sister" data-sample="assets/voice_samples/edge_nanami_sister.mp3" data-label="MS 七海（元気なお姉ちゃん調）">
+              <!-- ① 一番手：Gemini 2.5 Pro TTS - Aoede（最上位・超高音質モデル） -->
+              <button type="button" class="sample-card active" data-engine="gemini-tts" data-tts-model="gemini-2.5-pro-preview-tts" data-gemini-voice="Aoede" data-sample="" data-label="Gemini 2.5 Pro（Aoede・最高音質）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-gemini">👑 1番人気・Pro最上位モデル</span>
+                  <span class="sample-play-icon">▶️ AI試聴</span>
+                </div>
+                <div class="sample-name">Gemini 2.5 Pro TTS - Aoede（最高品質・自動保存）</div>
+                <div class="sample-desc">有料枠対応の最上位Proモデル！息遣い・間の取り方・感情演技が最も人間らしく自然（1度再生した音声は端末に永久保存されます）</div>
+              </button>
+
+              <!-- ② Gemini 2.5 Flash TTS - Aoede（高速・軽量モデル） -->
+              <button type="button" class="sample-card" data-engine="gemini-tts" data-tts-model="gemini-2.5-flash-preview-tts" data-gemini-voice="Aoede" data-sample="" data-label="Gemini 2.5 Flash（Aoede・高速）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-gemini">✨ 無料枠OK・高速AI演技</span>
+                  <span class="sample-play-icon">▶️ AI試聴</span>
+                </div>
+                <div class="sample-name">Gemini 2.5 Flash TTS - Aoede（高速モデル）</div>
+                <div class="sample-desc">明るく華やか・テンション高めのお姉ちゃん演技が得意なAIボイス（自動保存対応）！</div>
+              </button>
+
+              <!-- ③ 二番手：MS 七海（甘め・可愛い高め調・全30問120セリフ収録済み！） -->
+              <button type="button" class="sample-card" data-engine="edge-neural" data-edge-voice="nanami_cute" data-sample="assets/voice_samples/edge_nanami_cute.mp3" data-label="MS 七海（甘め・全問収録済）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-edge">🥈 2番人気・全120セリフ収録済</span>
+                  <span class="sample-play-icon">▶️ 試聴</span>
+                </div>
+                <div class="sample-name">七海 Nanami（甘め・キュート高め調）</div>
+                <div class="sample-desc">全30問（120セリフ）を事前生成して同梱済み！APIキー無しでも待ち時間0秒でフルボイス再生！</div>
+              </button>
+
+              <button type="button" class="sample-card" data-engine="edge-neural" data-edge-voice="nanami_sister" data-sample="assets/voice_samples/edge_nanami_sister.mp3" data-label="MS 七海（元気なお姉ちゃん調）">
                 <div class="sample-card-top">
                   <span class="sample-badge badge-edge">Microsoft・おすすめ</span>
                   <span class="sample-play-icon">▶️ 試聴</span>
                 </div>
                 <div class="sample-name">七海 Nanami（元気なお姉ちゃん調）</div>
                 <div class="sample-desc">明るく弾んだテンポと少し高めの声質（+14Hz）。お姉ちゃん感バッチリ！</div>
-              </button>
-
-              <button type="button" class="sample-card" data-engine="edge-neural" data-edge-voice="nanami_cute" data-sample="assets/voice_samples/edge_nanami_cute.mp3" data-label="MS 七海（甘め・可愛い高め）">
-                <div class="sample-card-top">
-                  <span class="sample-badge badge-edge">Microsoft・可愛い系</span>
-                  <span class="sample-play-icon">▶️ 試聴</span>
-                </div>
-                <div class="sample-name">七海 Nanami（甘め・キュート高め調）</div>
-                <div class="sample-desc">さらにピッチを高め（+22Hz）にした、甘え上手で可愛いアニメ寄りボイス！</div>
               </button>
 
               <button type="button" class="sample-card" data-engine="edge-neural" data-edge-voice="nanami_std" data-sample="assets/voice_samples/edge_nanami.mp3" data-label="MS 七海（ナチュラル標準）">

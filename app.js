@@ -147,11 +147,13 @@
         const speaker = parseInt(card.dataset.speaker || "8", 10);
         const samplePath = card.dataset.sample || "";
         const label = card.dataset.label || "";
-        const geminiVoice = card.dataset.geminiVoice || "Kore";
+        const geminiVoice = card.dataset.geminiVoice || "Aoede";
+        const ttsModel = card.dataset.ttsModel || "gemini-2.5-pro-preview-tts";
 
         window.haruSound.ttsEngine = engine;
         window.haruSound.voicevoxSpeaker = speaker;
         window.haruSound.geminiVoiceName = geminiVoice;
+        window.haruSound.geminiTtsModel = ttsModel;
         window.haruSound.setVoiceEnabled(true);
         el.chkVoice.checked = true;
         updateTopBarIcons();
@@ -159,6 +161,7 @@
         localStorage.setItem("haru_tts_engine", engine);
         localStorage.setItem("haru_vv_speaker", String(speaker));
         localStorage.setItem("haru_gemini_voice", geminiVoice);
+        localStorage.setItem("haru_gemini_tts_model", ttsModel);
         localStorage.setItem("haru_voice_label", label);
         state.currentVoiceLabel = label;
         if (el.currentVoiceBadge) el.currentVoiceBadge.textContent = label;
