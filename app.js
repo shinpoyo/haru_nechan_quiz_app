@@ -153,7 +153,7 @@
       window.haruSound.playHint();
       const hintMood = q.isHallucination ? "doya" : "pout";
       setSisterExpression(hintMood, "");
-      const cleanHint = q.hint.replace(/^お姉ちゃん/, "");
+      const cleanHint = q.hint.replace(/^お姉ちゃん/, "").replace(/^「|」$/g, "").trim();
       startPagedDialogue(cleanHint, hintMood, "question", q.id ? `${q.id}_h` : "");
     });
 
@@ -321,7 +321,7 @@
   // 意味の区切れ（文単位・接続句単位）を保ち、スマホ3行に余裕を持って収まるよう自然にページ分割
   function splitIntoPages(text, maxLen = 60) {
     let cleaned = text.trim();
-    const isQuote = cleaned.startsWith("「") || !cleaned.startsWith("【");
+    // 冒頭と末尾の「」を取り除く（セリフを「」で括らない）
     cleaned = cleaned.replace(/^「|」$/g, "").trim();
 
     const rawSentences = splitSentencesRespectingQuotes(cleaned);
@@ -355,7 +355,8 @@
       pages[pages.length - 1] += last;
     }
 
-    return pages.map(p => (isQuote && !p.startsWith("【") ? `「${p}」` : p));
+    // 「」で括らず、そのまま返す
+    return pages.map(p => p.replace(/^「|」$/g, "").trim());
   }
 
   function startPagedDialogue(fullText, mood, phase, pregenKey = "") {
@@ -526,7 +527,7 @@
     el.pointChip.classList.add("hidden");
 
     setSisterExpression("normal");
-    startPagedDialogue(`「${q.statement}」`, "normal", "question", q.id ? `${q.id}_q` : "");
+    startPagedDialogue(q.statement, "normal", "question", q.id ? `${q.id}_q` : "");
   }
 
   function submitAnswer(guessedHallucination) {
@@ -575,7 +576,7 @@
 
     const reactionLine = isCorrect ? q.reactionCorrect : q.reactionWrong;
     const pregenKey = q.id ? `${q.id}_${isCorrect ? "c" : "w"}` : "";
-    startPagedDialogue(`「${reactionLine}」`, nextExpr, "reaction", pregenKey);
+    startPagedDialogue(reactionLine, nextExpr, "reaction", pregenKey);
 
     state.history.push({
       statement: q.statement,
@@ -631,19 +632,19 @@
 
     if (ratio === 1) {
       rank = "👑 Sランク：春野詩音 完全攻略ファクトチェッカー";
-      comment = "「えーっ！？ 1問も騙せなかったなんて悔しすぎる〜！ 私のこと誰よりも知り尽くしてるじゃん…！ えへへ、さすが自慢の弟（妹）だね♪」";
+      comment = "えーっ！？ 1問も騙せなかったなんて悔しすぎる〜！ 私のこと誰よりも知り尽くしてるじゃん…！ えへへ、さすが自慢の弟（妹）だね♪";
       expr = "tehe";
     } else if (ratio >= 0.7) {
       rank = "✨ Aランク：詩音お姉ちゃん取扱説明書マスター";
-      comment = "「やるじゃん！ かなり巧妙なハルシネーション混ぜたのに、ほとんど見抜かれちゃった〜！ 次はもっとハイレベルな知ったかぶりするからね！」";
+      comment = "やるじゃん！ かなり巧妙なハルシネーション混ぜたのに、ほとんど見抜かれちゃった〜！ 次はもっとハイレベルな知ったかぶりするからね！";
       expr = "happy";
     } else if (ratio >= 0.4) {
       rank = "🐣 Bランク：素直で可愛い信じ屋さん";
-      comment = "「ふっふっふ〜、お姉ちゃんのドヤ顔トークに半分くらいコロッと引っかかってたね♪ でも素直で可愛いから許してあげる！」";
+      comment = "ふっふっふ〜、お姉ちゃんのドヤ顔トークに半分くらいコロッと引っかかってたね♪ でも素直で可愛いから許してあげる！";
       expr = "doya";
     } else {
       rank = "🍮 Cランク：お姉ちゃんのカモ（純粋培養100%）";
-      comment = "「あははは！ お姉ちゃんのハルシネーションを全部信じてくれるなんて、世界一ピュアで可愛い弟（妹）だな〜！ これからもいっぱい雑学教えてあげるね♪」";
+      comment = "あははは！ お姉ちゃんのハルシネーションを全部信じてくれるなんて、世界一ピュアで可愛い弟（妹）だな〜！ これからもいっぱい雑学教えてあげるね♪";
       expr = "doya";
     }
 
