@@ -77,11 +77,16 @@
   };
 
   const EXPR_META = {
-    normal: { bubble: "☝️ 自信満々" },
-    doya:   { bubble: "😏 ドヤァ…！" },
-    tehe:   { bubble: "😜 てへぺろ♪" },
-    happy:  { bubble: "✨ さすが！！" },
-    pout:   { bubble: "😤 むーっ！" }
+    normal:   { bubble: "☝️ 自信満々" },
+    doya:     { bubble: "😏 ドヤァ…！" },
+    tehe:     { bubble: "😜 てへぺろ♪" },
+    happy:    { bubble: "✨ やったね♪" },
+    pout:     { bubble: "😤 むーっ！" },
+    shock:    { bubble: "😱 えっ嘘ぉ！？" },
+    shy:      { bubble: "😳 恥ずかしい〜！" },
+    cry:      { bubble: "🥺 うるうる…" },
+    confused: { bubble: "🤔 あれれ〜？" },
+    wink:     { bubble: "😉 えへへ♪" }
   };
 
   function init() {
@@ -162,7 +167,7 @@
       const q = state.deck[state.currentIndex];
       if (!q) return;
       window.haruSound.playHint();
-      const hintMood = q.isHallucination ? "doya" : "pout";
+      const hintMood = q.hintExpr || (q.isHallucination ? "confused" : "pout");
       setSisterExpression(hintMood, "");
       const cleanHint = q.hint.replace(/^お姉ちゃん/, "").replace(/^「|」$/g, "").trim();
       startPagedDialogue(cleanHint, hintMood, "question", q.id ? `${q.id}_h` : "");
@@ -543,16 +548,11 @@
     const q = state.deck[state.currentIndex];
     const isCorrect = guessedHallucination === q.isHallucination;
 
-    let nextExpr = "normal";
-    let animClass = "";
-
     if (isCorrect) {
       state.score++;
       state.combo++;
       if (state.combo > state.maxCombo) state.maxCombo = state.combo;
       window.haruSound.playCorrect();
-      nextExpr = q.isHallucination ? "tehe" : "happy";
-      animClass = "anim-happy";
     } else {
       state.combo = 0;
       if (q.isHallucination) {
@@ -561,9 +561,11 @@
         state.doubtedTruthCount++;
       }
       window.haruSound.playWrong();
-      nextExpr = q.isHallucination ? "doya" : "pout";
-      animClass = "anim-shock";
     }
+
+    const nextExpr = q.reactionExpr || (q.isHallucination ? "shy" : "happy");
+    const shockExprs = ["shock", "shy", "cry", "pout", "confused"];
+    const animClass = shockExprs.includes(nextExpr) ? "anim-shock" : "anim-happy";
 
     if (state.combo >= 2) {
       el.comboPill.textContent = `🔥 ${state.combo}`;
@@ -594,11 +596,11 @@
       el.phoneResultCard.classList.remove("hidden");
     }
 
-    // 2. 下部の固定テキストボックスには春野詩音（おバカで可愛いお姉ちゃん）のリアクションを同時表示＆ボイス再生
+    // 2. 下部の固定テキストボックスには春野詩音（おバカで可愛いお姉ちゃん）の1クイズ1リアクションを同時表示＆ボイス再生
     setSisterExpression(nextExpr, animClass);
 
-    const reactionLine = isCorrect ? q.reactionCorrect : q.reactionWrong;
-    const pregenKey = q.id ? `${q.id}_${isCorrect ? "c" : "w"}` : "";
+    const reactionLine = q.reaction || q.reactionCorrect || "";
+    const pregenKey = q.id ? `${q.id}_r` : "";
     startPagedDialogue(reactionLine, nextExpr, "reaction", pregenKey);
 
     state.history.push({

@@ -26,13 +26,7 @@ def parse_questions_js(filepath: str = "questions.js"):
     content = Path(filepath).read_text(encoding="utf-8")
     start = content.find("[")
     end = content.rfind("]") + 1
-    arr_str = content[start:end]
-    json_str = re.sub(
-        r'(\s+)(id|category|statement|isHallucination|hint|reactionCorrect|reactionWrong|explanation|pointTag):',
-        r'\1"\2":',
-        arr_str,
-    )
-    return json.loads(json_str)
+    return json.loads(content[start:end])
 
 
 # ユーザー決定の3番仕様：24000Hz PCM を 25000Hz (+4.2%) の絶妙な少女トーンWAVヘッダーで保存
@@ -56,19 +50,8 @@ def pcm_to_wav_opt3(pcm_bytes: bytes, target_rate: int = 25000) -> bytes:
     return header + pcm_bytes
 
 
-def get_reaction_style(is_hallu: bool, suffix: str) -> str:
-    if is_hallu and suffix == "c":
-        return "【キャラクター設定】見た目10代後半の愛嬌満点でおバカ可愛いアニメの美少女お姉ちゃん。うろ覚えや知ったかぶりがスマホ検索でバレてしまい、顔を赤くして恥ずかしそうに照れたり『えっ違ったの！？』と可愛く焦ったりするアニメ少女口調で話してください"
-    elif is_hallu and suffix == "w":
-        return "【キャラクター設定】見た目10代後半の愛嬌満点でおバカ可愛いアニメの美少女お姉ちゃん。最初は得意げにいたずらっぽく笑いつつ、スマホで検索されて『あっ調べないで、恥ずかしい〜！』と可愛く焦るアニメ少女口調で話してください"
-    elif not is_hallu and suffix == "c":
-        return "【キャラクター設定】見た目10代後半の愛嬌満点でおバカ可愛いアニメの美少女お姉ちゃん。自分の雑学がスマホ検索でも本当だと証明されて、『ほらね〜！お姉ちゃんの言った通りでしょ！』と満面の笑顔で得意げに喜ぶ可愛いアニメ少女口調で話してください"
-    else:
-        return "【キャラクター設定】見た目10代後半の愛嬌満点でおバカ可愛いアニメの美少女お姉ちゃん。せっかく本当のことを教えてあげたのに疑われて、『むーっ！ほらスマホ見てよ、本当だったでしょ！』とほっぺを膨らませて可愛く拗ねるアニメ少女口調で話してください"
-
-
-def generate_single_reaction(task, api_key: str, out_dir: Path):
-    idx, total, qid, is_hallu, suffix, raw_text = task
+def generate_single_voice(task, api_key: str, out_dir: Path):
+    idx, total, qid, suffix, raw_text = task
     out_file = out_dir / f"{qid}_{suffix}.mp3"
     text = clean_text(raw_text)
 
@@ -85,6 +68,8 @@ def generate_single_reaction(task, api_key: str, out_dir: Path):
     }
 
     models_to_try = [
+        "gemini-2.5-flash-preview-tts",
+        "gemini-2.5-pro-preview-tts",
         "gemini-3.1-flash-tts-preview",
         "gemini-3.8-flash-tts",
         "gemini-3.8-flash-lite-tts",
@@ -115,12 +100,12 @@ def generate_single_reaction(task, api_key: str, out_dir: Path):
                     time.sleep(1.5 + attempt)
                 else:
                     time.sleep(1.0)
-            except Exception as e:
+            except Exception:
                 time.sleep(1.0)
     return f"[{idx}/{total}] FAILED {out_file.name}"
 
 
-def generate_all_reactions(questions):
+def generate_missing_voices(questions):
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         print("GEMINI_API_KEY is not set.")
@@ -130,22 +115,25 @@ def generate_all_reactions(questions):
     out_dir.mkdir(parents=True, exist_ok=True)
 
     tasks = []
-    total = len(questions) * 2
     idx = 0
     for q in questions:
         qid = q["id"]
-        is_hallu = bool(q["isHallucination"])
-        for suffix, raw_text in [("c", q["reactionCorrect"]), ("w", q["reactionWrong"])]:
-            idx += 1
+        for suffix, raw_text in [("q", q["statement"]), ("h", q["hint"]), ("r", q["reaction"])]:
             out_file = out_dir / f"{qid}_{suffix}.mp3"
-            if out_file.exists() and 10000 < out_file.stat().st_size <= 650000:
+            fallback_c = out_dir / f"{qid}_c.mp3"
+            if out_file.exists() and out_file.stat().st_size > 10000:
                 continue
-            tasks.append((idx, total, qid, is_hallu, suffix, raw_text))
+            if suffix == "r" and fallback_c.exists() and fallback_c.stat().st_size > 10000:
+                continue
+            idx += 1
+            tasks.append((idx, 0, qid, suffix, raw_text))
 
-    print(f"Regenerating {len(tasks)} oversized reaction voices with pure dialogue...", flush=True)
-    with ThreadPoolExecutor(max_workers=6) as executor:
+    total = len(tasks)
+    tasks = [(i, total, qid, s, t) for i, _, qid, s, t in tasks]
+    print(f"Generating {total} missing voice files in parallel...", flush=True)
+    with ThreadPoolExecutor(max_workers=5) as executor:
         futures = [
-            executor.submit(generate_single_reaction, t, api_key, out_dir)
+            executor.submit(generate_single_voice, t, api_key, out_dir)
             for t in tasks
         ]
         for fut in as_completed(futures):
@@ -154,5 +142,5 @@ def generate_all_reactions(questions):
 
 if __name__ == "__main__":
     qs = parse_questions_js()
-    generate_all_reactions(qs)
-    print("All reaction voices updated!")
+    generate_missing_voices(qs)
+    print("Voice generation batch completed!")

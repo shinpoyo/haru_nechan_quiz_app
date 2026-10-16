@@ -231,48 +231,24 @@ class HaruSoundEngine {
     });
   }
 
-  // 音声再生メインエントリ（事前収録Aoedeボイス最優先・完全オフライン安全）
+  // 音声再生メインエントリ（事前収録Aoedeボイス専用・未収録問題は静かにスキップ）
   async speak(text, mood = "normal", pregenKey = "") {
-    if (!this.voiceEnabled) return;
+    if (!this.voiceEnabled || !pregenKey) return;
     const cleanText = this.cleanTextForSpeech(text);
     if (!cleanText) return;
 
     this.stopSpeak();
     const reqId = this.speakReqId;
 
-    // 1. 事前収録 Aoede（いたずら少女調）音声ファイルを最優先で再生
-    if (pregenKey) {
-      const playedAoede = await this.tryPlayFile(`assets/voices_aoede/${pregenKey}.mp3`, reqId);
-      if (playedAoede || reqId !== this.speakReqId) return;
+    // 事前収録 Aoede（春野詩音ボイス）音声ファイルを再生
+    const playedAoede = await this.tryPlayFile(`assets/voices_aoede/${pregenKey}.mp3`, reqId);
+    if (playedAoede || reqId !== this.speakReqId) return;
 
-      // 2. フォールバック: 七海（甘め）事前収録音声
-      const playedFallback = await this.tryPlayFile(`assets/voices_nanami/${pregenKey}.mp3`, reqId);
-      if (playedFallback || reqId !== this.speakReqId) return;
+    // 1クイズ1リアクション化対応: `${id}_r` が未作成で `${id}_c` が存在する場合は `${id}_c.mp3` を再生
+    if (pregenKey.endsWith("_r")) {
+      const fallbackKey = pregenKey.replace(/_r$/, "_c");
+      await this.tryPlayFile(`assets/voices_aoede/${fallbackKey}.mp3`, reqId);
     }
-
-    // 3. ブラウザ標準 Web Speech API（万一の予備）
-    if (reqId === this.speakReqId) {
-      this.speakWithWebSpeech(cleanText, mood);
-    }
-  }
-
-  speakWithWebSpeech(cleanText, mood = "normal") {
-    if (!("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-
-    const utter = new SpeechSynthesisUtterance(cleanText);
-    utter.lang = "ja-JP";
-    utter.pitch = this.voicePitch;
-    utter.rate = this.voiceRate;
-
-    const voices = window.speechSynthesis.getVoices().filter(v => v.lang.includes("ja") || v.lang.includes("JP"));
-    if (voices.length > 0) {
-      const chosen =
-        voices.find(v => /Nanami|Kyoko|Haruka|Sayaka|Google 日本語|O-Ren/i.test(v.name)) ||
-        voices[0];
-      if (chosen) utter.voice = chosen;
-    }
-    window.speechSynthesis.speak(utter);
   }
 }
 
