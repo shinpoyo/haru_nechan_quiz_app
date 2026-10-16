@@ -14,32 +14,7 @@
 </head>
 <body>
   <div class="app-shell">
-    <!-- トップヘッダー（ステータス＆クイック設定） -->
-    <header class="top-bar">
-      <div class="brand-logo" id="btnHomeLogo" title="タイトルへ戻る">
-        <span class="logo-badge">姉AI</span>
-        <span class="logo-title">はるしねーちゃん</span>
-      </div>
-
-      <div class="hud-stats" id="hudStats">
-        <div class="stat-pill" id="progressPill">Q. 1 / 7</div>
-        <div class="stat-pill combo-pill hidden" id="comboPill">🔥 0 COMBO</div>
-      </div>
-
-      <div class="top-actions">
-        <button class="icon-btn" id="btnToggleVoice" title="ボイス読み上げ ON/OFF" aria-label="ボイス切替">
-          🔊
-        </button>
-        <button class="icon-btn" id="btnToggleSE" title="効果音 ON/OFF" aria-label="効果音切替">
-          🎵
-        </button>
-        <button class="icon-btn" id="btnOpenSettings" title="AI設定・ボイス設定" aria-label="設定を開く">
-          ⚙️
-        </button>
-      </div>
-    </header>
-
-    <!-- メインステージ（ビジュアルノベル画面） -->
+    <!-- メインステージ（画面全体に背景＆立ち絵を表示） -->
     <main class="vn-stage" id="vnStage">
       <!-- 背景＆立ち絵レイヤー（5表情のクロスフェード） -->
       <div class="character-viewport" id="charViewport">
@@ -48,16 +23,28 @@
         <img src="assets/haru_tehe.jpg" alt="はるしねーちゃん てへぺろ" class="char-layer" data-expr="tehe" />
         <img src="assets/haru_happy.jpg" alt="はるしねーちゃん 笑顔" class="char-layer" data-expr="happy" />
         <img src="assets/haru_pout.jpg" alt="はるしねーちゃん むーっ" class="char-layer" data-expr="pout" />
-
-        <!-- 感情エフェクトバッジ（立ち絵の横に出る吹き出しアイコン） -->
-        <div class="emotion-bubble" id="emotionBubble">☝️ 自信満々</div>
-
-        <!-- 判定スタンプアニメーション -->
-        <div class="judge-stamp hidden" id="judgeStamp">見破り成功！</div>
       </div>
 
+      <!-- フローティング上部HUD（ノベルゲーム風に画面上部へスッキリ配置） -->
+      <header class="floating-hud">
+        <div class="hud-left">
+          <button class="home-pill" id="btnHomeLogo" title="タイトルへ戻る">
+            <span class="logo-dot">🌸</span>
+            <span class="logo-text">はるしねーちゃん</span>
+          </button>
+          <div class="stat-pill" id="progressPill">待機中</div>
+          <div class="stat-pill combo-pill hidden" id="comboPill">🔥 0</div>
+        </div>
+
+        <div class="hud-right">
+          <button class="hud-icon-btn" id="btnToggleVoice" title="ボイス読み上げ ON/OFF" aria-label="ボイス切替">🔊</button>
+          <button class="hud-icon-btn" id="btnToggleSE" title="効果音 ON/OFF" aria-label="効果音切替">🎵</button>
+          <button class="hud-icon-btn" id="btnOpenSettings" title="透過度・ボイス・AI設定" aria-label="設定を開く">⚙️</button>
+        </div>
+      </header>
+
       <!-- ===== 1. タイトル画面オーバーレイ ===== -->
-      <section class="overlay-screen title-screen active" id="titleScreen">
+      <section class="overlay-screen title-screen" id="titleScreen">
         <div class="title-card">
           <div class="title-catch">＼ ドヤ顔お姉ちゃんの知ったかぶりクイズ ／</div>
           <h1 class="main-title">
@@ -65,8 +52,8 @@
           </h1>
           <p class="title-desc">
             お姉ちゃん（春野 詩音）は博識ぶるのが大好き！<br>
-            でも半分くらいは<strong>AI顔負けの「ハルシネーション（もっともらしい嘘）」</strong>が混ざってる！？<br>
-            お姉ちゃんの話が<strong>「ハルシネーション」</strong>か<strong>「ホント」</strong>か見破ろう！
+            でも半分は<strong>AI顔負けの「ハルシネーション（もっともらしい嘘）」</strong>！？<br>
+            お姉ちゃんの話が<strong>「嘘」</strong>か<strong>「ホント」</strong>か見破ろう！
           </p>
 
           <div class="mode-buttons">
@@ -89,7 +76,7 @@
                 <input
                   type="text"
                   id="inputCustomTopic"
-                  placeholder="お姉ちゃんに聞きたいテーマ（例：宇宙、猫、戦国時代、寿司）"
+                  placeholder="テーマ（例：宇宙、猫、戦国時代、寿司）"
                   maxlength="30"
                 />
                 <button class="ai-gen-btn" id="btnStartAIGen">
@@ -100,70 +87,59 @@
           </div>
 
           <div class="lifetime-stats" id="lifetimeStats">
-            これまでの通算見破り率：<strong id="statAccuracy">--%</strong>（最高 <strong id="statBestCombo">0</strong> 連続正解）
+            通算見破り率：<strong id="statAccuracy">--%</strong>（最高 <strong id="statBestCombo">0</strong> 連続正解）
           </div>
         </div>
       </section>
 
-      <!-- ===== 2. クイズ進行＆ノベル会話ウィンドウ ===== -->
-      <section class="vn-dialogue-area hidden" id="quizScreen">
-        <!-- ツッコミ（ヒント）ミニ吹き出し -->
-        <div class="hint-balloon hidden" id="hintBalloon">
-          <span class="hint-icon">💬</span>
-          <span id="hintText"></span>
+      <!-- ===== 2. ギャルゲー/ノベル風プレイ画面（下部3行ウィンドウ＋上部ポップアップ選択肢） ===== -->
+      <section class="vn-play-layer hidden" id="quizScreen">
+        <!-- 選択肢ポップアップ（選ぶときだけテキストウィンドウの上に浮かび上がる） -->
+        <div class="floating-choices hidden" id="choiceContainer">
+          <button class="vn-choice-bar hallu-choice" id="btnChooseHallucination">
+            <span class="choice-icon">🚨</span>
+            <span class="choice-main">ハルシネーション！（知ったかぶりの嘘）</span>
+          </button>
+
+          <button class="vn-choice-bar truth-choice" id="btnChooseTruth">
+            <span class="choice-icon">✨</span>
+            <span class="choice-main">ホント！（嘘みたいだけどガチの事実）</span>
+          </button>
+
+          <button class="vn-choice-bar tsukkomi-choice" id="btnTsukkomi">
+            <span class="choice-icon">🤔</span>
+            <span class="choice-main">お姉ちゃんにツッコむ（揺さぶりヒント）</span>
+          </button>
         </div>
 
-        <!-- ギャルゲー風メッセージウィンドウ -->
-        <div class="dialogue-window" id="dialogueWindow">
-          <div class="dialogue-header">
-            <div class="speaker-plate">
-              <span class="speaker-name">はるしねーちゃん</span>
-              <span class="speaker-mood" id="speakerMood">自信満々モード</span>
+        <!-- 画面下部のスッキリ3行テキストウィンドウ -->
+        <div class="vn-textbox-wrap">
+          <!-- ネームプレート＆判定バッジ行（テキストボックスのすぐ上） -->
+          <div class="vn-textbox-top-row">
+            <div class="vn-nameplate">
+              <span class="vn-speaker-name">はるしねーちゃん</span>
+              <span class="vn-mood-badge" id="emotionBubble">☝️ 自信満々</span>
             </div>
-            <div class="question-meta">
-              <span class="category-tag" id="categoryTag">雑学</span>
-              <button class="replay-voice-btn" id="btnReplayVoice" title="もう一回読み上げる">🔊 聴く</button>
+
+            <!-- 回答時の判定リボン（顔を隠さずネームプレート横にスッキリ表示） -->
+            <div class="vn-judge-badge hidden" id="judgeStamp">🎯 見破り成功！</div>
+
+            <div class="vn-meta-controls">
+              <span class="vn-category-pill" id="categoryTag">雑学</span>
+              <button class="vn-mini-btn" id="btnReplayVoice" title="ボイスをもう一回聴く">🔊</button>
             </div>
           </div>
 
-          <div class="dialogue-body" id="dialogueBody">
-            <p class="dialogue-text" id="dialogueText"></p>
-            <span class="next-cursor" id="textCursor">▼</span>
-          </div>
+          <!-- 3行固定の透過メッセージボックス本体 -->
+          <div class="vn-textbox" id="dialogueBody">
+            <div class="vn-point-line hidden" id="pointChip"></div>
+            <p class="vn-dialogue-text" id="dialogueText"></p>
 
-          <!-- 解説パート（回答後に展開） -->
-          <div class="explanation-panel hidden" id="explanationPanel">
-            <div class="point-chip" id="pointChip">ポイント</div>
-            <p class="explanation-text" id="explanationText"></p>
-          </div>
-
-          <!-- 回答ボタン群（出題中） -->
-          <div class="choice-container" id="choiceContainer">
-            <button class="choice-btn hallucination-btn" id="btnChooseHallucination">
-              <span class="choice-emoji">🚨</span>
-              <div class="choice-label-group">
-                <span class="choice-title">ハルシネーション！</span>
-                <span class="choice-sub">お姉ちゃんの知ったかぶり（嘘）</span>
-              </div>
-            </button>
-
-            <button class="choice-btn truth-btn" id="btnChooseTruth">
-              <span class="choice-emoji">✨</span>
-              <div class="choice-label-group">
-                <span class="choice-title">ホント！</span>
-                <span class="choice-sub">嘘みたいだけどガチの事実</span>
-              </div>
-            </button>
-          </div>
-
-          <!-- サブアクション（ツッコミを入れる / 次の問題へ） -->
-          <div class="dialogue-footer">
-            <button class="tsukkomi-btn" id="btnTsukkomi">
-              🤔 お姉ちゃんにツッコむ（揺さぶる）
-            </button>
-            <button class="next-question-btn hidden" id="btnNextQuestion">
-              次のお姉ちゃんの話へ ▶
-            </button>
+            <!-- 右下の進行インジケーター / アクションボタン -->
+            <div class="vn-textbox-footer">
+              <span class="vn-page-hint" id="pageHintText">タップで進む</span>
+              <button class="vn-next-inline-btn" id="btnNextAction">▼</button>
+            </div>
           </div>
         </div>
       </section>
@@ -187,12 +163,11 @@
               <span class="score-value" id="resultMaxCombo">7 連続</span>
             </div>
             <div class="score-box">
-              <span class="score-label">お姉ちゃん騙され度</span>
+              <span class="score-label">騙され度</span>
               <span class="score-value" id="resultGullibility">0%</span>
             </div>
           </div>
 
-          <!-- 今回の出題ふりかえりリスト -->
           <div class="history-section">
             <h3 class="history-title">📋 今回のお姉ちゃんの発言ログ</h3>
             <div class="history-list" id="resultHistoryList"></div>
@@ -206,7 +181,7 @@
       </section>
     </main>
 
-    <!-- ===== 設定モーダル（Gemini APIキー＆ボイス調整） ===== -->
+    <!-- ===== 設定モーダル（透過度スライダー・Gemini APIキー・ボイス調整） ===== -->
     <div class="modal-backdrop hidden" id="settingsModal">
       <div class="modal-card">
         <div class="modal-header">
@@ -215,6 +190,20 @@
         </div>
 
         <div class="modal-body">
+          <!-- ウィンドウ＆選択肢の透過度設定 -->
+          <div class="setting-group">
+            <label class="setting-label">🪟 ウィンドウ・選択肢の背景透過度</label>
+            <div class="slider-row">
+              <span>背景の濃さ（不透明度）: <strong id="lblOpacity">75%</strong></span>
+              <input type="range" id="rngOpacity" min="25" max="98" step="1" value="75" />
+            </div>
+            <p class="setting-help">
+              ※数値を下げるとテキストウィンドウや選択肢がより透明になり、お姉ちゃんの立ち絵が透けて見えます。
+            </p>
+          </div>
+
+          <hr class="modal-divider" />
+
           <div class="setting-group">
             <label class="setting-label">🔊 サウンド＆お姉ちゃんボイス設定</label>
             <div class="toggle-row">
@@ -241,7 +230,7 @@
           <div class="setting-group">
             <label class="setting-label">🤖 Gemini APIキー設定（AI無限問題生成用）</label>
             <p class="setting-help">
-              APIキーを設定すると、好きなテーマでお姉ちゃんが新しいハルシネーション＆ガチ雑学クイズをリアルタイム生成します（ブラウザのlocalStorageにのみ保存されます）。
+              APIキーを設定すると、好きなテーマでお姉ちゃんが新しいクイズをリアルタイム生成します（端末内のlocalStorageにのみ保存）。
             </p>
             <input
               type="password"

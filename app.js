@@ -1,24 +1,27 @@
-// はるしねーちゃん メインゲームロジック
+// はるしねーちゃん メインゲームロジック（ギャルゲー風3行テキスト＆ポップアップ選択肢対応）
 
 (() => {
-  // 状態管理
   const state = {
     deck: [],
     currentIndex: 0,
     score: 0,
     combo: 0,
     maxCombo: 0,
-    trickedByLieCount: 0, // ハルシネーションをホントと信じた回数
-    doubtedTruthCount: 0, // ホントをハルシネーションと疑った回数
+    trickedByLieCount: 0,
+    doubtedTruthCount: 0,
     history: [],
-    isAnswering: false,
+
+    // 会話フェーズ: "question" | "reaction" | "explanation"
+    phase: "question",
+    pages: [],
+    pageIndex: 0,
     typingTimer: null,
     fullCurrentText: "",
     currentMood: "normal",
-    lastModeCount: 7
+    lastModeCount: 7,
+    uiOpacityPct: parseInt(localStorage.getItem("haru_ui_opacity") || "75", 10)
   };
 
-  // DOM要素
   const el = {
     btnHomeLogo: document.getElementById("btnHomeLogo"),
     progressPill: document.getElementById("progressPill"),
@@ -44,24 +47,18 @@
     statAccuracy: document.getElementById("statAccuracy"),
     statBestCombo: document.getElementById("statBestCombo"),
 
-    hintBalloon: document.getElementById("hintBalloon"),
-    hintText: document.getElementById("hintText"),
-    speakerMood: document.getElementById("speakerMood"),
     categoryTag: document.getElementById("categoryTag"),
     btnReplayVoice: document.getElementById("btnReplayVoice"),
     dialogueBody: document.getElementById("dialogueBody"),
     dialogueText: document.getElementById("dialogueText"),
-    textCursor: document.getElementById("textCursor"),
-
-    explanationPanel: document.getElementById("explanationPanel"),
     pointChip: document.getElementById("pointChip"),
-    explanationText: document.getElementById("explanationText"),
+    pageHintText: document.getElementById("pageHintText"),
+    btnNextAction: document.getElementById("btnNextAction"),
 
     choiceContainer: document.getElementById("choiceContainer"),
     btnChooseHallucination: document.getElementById("btnChooseHallucination"),
     btnChooseTruth: document.getElementById("btnChooseTruth"),
     btnTsukkomi: document.getElementById("btnTsukkomi"),
-    btnNextQuestion: document.getElementById("btnNextQuestion"),
 
     resultRankTitle: document.getElementById("resultRankTitle"),
     resultSisterComment: document.getElementById("resultSisterComment"),
@@ -74,6 +71,8 @@
 
     settingsModal: document.getElementById("settingsModal"),
     btnCloseSettings: document.getElementById("btnCloseSettings"),
+    rngOpacity: document.getElementById("rngOpacity"),
+    lblOpacity: document.getElementById("lblOpacity"),
     chkVoice: document.getElementById("chkVoice"),
     chkSE: document.getElementById("chkSE"),
     rngPitch: document.getElementById("rngPitch"),
@@ -89,22 +88,20 @@
     loadingTitle: document.getElementById("loadingTitle")
   };
 
-  // 表情プリセット定義
   const EXPR_META = {
-    normal: { bubble: "☝️ 自信満々", moodText: "博識お姉ちゃんモード" },
-    doya:   { bubble: "😏 ドヤァ…！", moodText: "してやったりドヤ顔" },
-    tehe:   { bubble: "😜 てへぺろ♪", moodText: "嘘がバレて照れ隠し中" },
-    happy:  { bubble: "✨ さすが！！", moodText: "ご機嫌お姉ちゃん" },
-    pout:   { bubble: "😤 むーっ！", moodText: "疑われてぷくーっ顔" }
+    normal: { bubble: "☝️ 自信満々" },
+    doya:   { bubble: "😏 ドヤァ…！" },
+    tehe:   { bubble: "😜 てへぺろ♪" },
+    happy:  { bubble: "✨ さすが！！" },
+    pout:   { bubble: "😤 むーっ！" }
   };
 
-  // 初期化
   function init() {
+    applyUIOpacity(state.uiOpacityPct);
     updateTopBarIcons();
     updateLifetimeStatsUI();
     updateAIKeyBadge();
 
-    // イベント登録
     el.btnHomeLogo.addEventListener("click", () => {
       window.haruSound.playClick();
       showTitleScreen();
@@ -131,8 +128,10 @@
       el.settingsModal.classList.add("hidden");
     });
 
-    el.btnSaveSettings.addEventListener("click", () => {
-      saveSettingsFromModal();
+    el.rngOpacity.addEventListener("input", () => {
+      const val = parseInt(el.rngOpacity.value, 10);
+      el.lblOpacity.textContent = `${val}%`;
+      applyUIOpacity(val);
     });
 
     el.rngPitch.addEventListener("input", () => {
@@ -152,7 +151,11 @@
       window.haruSound.speak("ねえねえ、この雑学ってハルシネーションだと思う？ それともホントかな？", "normal");
     });
 
-    // ゲーム開始ボタン
+    el.btnSaveSettings.addEventListener("click", () => {
+      saveSettingsFromModal();
+    });
+
+    // ゲーム開始
     el.btnStartStandard.addEventListener("click", () => {
       window.haruSound.playClick();
       startCuratedGame(7);
@@ -168,46 +171,39 @@
       startAIGame();
     });
 
-    // 文字送りスキップ
-    el.dialogueBody.addEventListener("click", () => {
-      if (state.typingTimer) {
-        finishTypewriterImmediately();
-      }
+    // テキストボックスのタップ進行（文字送り完了 → 次ページ → 解説 → 次の問題）
+    el.dialogueBody.addEventListener("click", (e) => {
+      e.stopPropagation();
+      handleTextboxAdvance();
     });
 
-    el.btnReplayVoice.addEventListener("click", () => {
+    el.btnNextAction.addEventListener("click", (e) => {
+      e.stopPropagation();
+      handleTextboxAdvance();
+    });
+
+    el.btnReplayVoice.addEventListener("click", (e) => {
+      e.stopPropagation();
       window.haruSound.setVoiceEnabled(true);
       updateTopBarIcons();
       window.haruSound.speak(state.fullCurrentText, state.currentMood);
     });
 
-    // 回答選択
+    // 選択肢クリック
     el.btnChooseHallucination.addEventListener("click", () => submitAnswer(true));
     el.btnChooseTruth.addEventListener("click", () => submitAnswer(false));
 
-    // ツッコミ（ヒント）
+    // ツッコミ（ヒント：顔を隠さず3行ウィンドウ内でお姉ちゃんが反応）
     el.btnTsukkomi.addEventListener("click", () => {
       const q = state.deck[state.currentIndex];
       if (!q) return;
       window.haruSound.playHint();
-      el.hintText.textContent = q.hint;
-      el.hintBalloon.classList.remove("hidden");
-      setSisterExpression(q.isHallucination ? "doya" : "pout", false);
-      window.haruSound.speak(q.hint, q.isHallucination ? "doya" : "pout");
+      const hintMood = q.isHallucination ? "doya" : "pout";
+      setSisterExpression(hintMood, "");
+      const cleanHint = q.hint.replace(/^お姉ちゃん/, "");
+      startPagedDialogue(cleanHint, hintMood, "question");
     });
 
-    // 次の問題へ
-    el.btnNextQuestion.addEventListener("click", () => {
-      window.haruSound.playClick();
-      state.currentIndex++;
-      if (state.currentIndex >= state.deck.length) {
-        showResultScreen();
-      } else {
-        presentCurrentQuestion();
-      }
-    });
-
-    // リザルト画面ボタン
     el.btnRetrySame.addEventListener("click", () => {
       window.haruSound.playClick();
       startCuratedGame(state.lastModeCount);
@@ -217,6 +213,12 @@
       window.haruSound.playClick();
       showTitleScreen();
     });
+  }
+
+  function applyUIOpacity(pct) {
+    state.uiOpacityPct = pct;
+    const alpha = Math.max(0.2, Math.min(0.98, pct / 100));
+    document.documentElement.style.setProperty("--ui-opacity", alpha.toFixed(2));
   }
 
   function updateTopBarIcons() {
@@ -229,10 +231,10 @@
     const key = localStorage.getItem("haru_gemini_api_key") || "";
     if (key.trim()) {
       el.aiKeyStatusBadge.textContent = "✅ Gemini API連携ON";
-      el.aiKeyStatusBadge.style.color = "#059669";
+      el.aiKeyStatusBadge.style.color = "#047857";
     } else {
-      el.aiKeyStatusBadge.textContent = "APIキー未設定（設定⚙️で登録すると自由生成！）";
-      el.aiKeyStatusBadge.style.color = "#7d6574";
+      el.aiKeyStatusBadge.textContent = "APIキー未設定（設定⚙️から登録可）";
+      el.aiKeyStatusBadge.style.color = "#735868";
     }
   }
 
@@ -245,7 +247,6 @@
     el.statBestCombo.textContent = String(bestCombo);
   }
 
-  // 表情切り替え
   function setSisterExpression(expr, animateType = "") {
     state.currentMood = expr;
     el.charLayers.forEach(img => {
@@ -254,7 +255,6 @@
 
     const meta = EXPR_META[expr] || EXPR_META.normal;
     el.emotionBubble.textContent = meta.bubble;
-    el.speakerMood.textContent = meta.moodText;
 
     el.charViewport.classList.remove("anim-happy", "anim-shock");
     if (animateType) {
@@ -263,31 +263,90 @@
     }
   }
 
-  // タイプライター文字表示
-  function startTypewriter(text, mood = "normal") {
+  // 長い文章を3行以内（約52文字目安）の自然なページに分割
+  function splitIntoPages(text, maxLen = 54) {
+    const cleaned = text.trim();
+    if (cleaned.length <= maxLen) return [cleaned];
+
+    // 句点・感嘆符・疑問符・読点で区切る
+    const tokens = cleaned.split(/(?<=[！？。…])/);
+    const pages = [];
+    let current = "";
+
+    for (const token of tokens) {
+      if ((current + token).length <= maxLen) {
+        current += token;
+      } else {
+        if (current) pages.push(current.trim());
+        if (token.length <= maxLen) {
+          current = token;
+        } else {
+          // 1文が長い場合は読点「、」または文字数で分割
+          const subTokens = token.split(/(?<=、)/);
+          let subCur = "";
+          for (const st of subTokens) {
+            if ((subCur + st).length <= maxLen) {
+              subCur += st;
+            } else {
+              if (subCur) pages.push(subCur.trim());
+              subCur = st;
+            }
+          }
+          current = subCur;
+        }
+      }
+    }
+    if (current.trim()) pages.push(current.trim());
+    return pages.length > 0 ? pages : [cleaned];
+  }
+
+  // ページ分割付きテキスト表示開始
+  function startPagedDialogue(fullText, mood, phase) {
+    state.phase = phase;
+    state.pages = splitIntoPages(fullText);
+    state.pageIndex = 0;
+
+    // ボイスは全文を滑らかに読み上げ
+    window.haruSound.speak(fullText, mood);
+    showCurrentPage();
+  }
+
+  function showCurrentPage() {
     if (state.typingTimer) {
       clearInterval(state.typingTimer);
       state.typingTimer = null;
     }
-    state.fullCurrentText = text;
+
+    const pageText = state.pages[state.pageIndex] || "";
+    state.fullCurrentText = pageText;
     el.dialogueText.textContent = "";
-    el.textCursor.classList.add("hidden");
+
+    const isLastPage = state.pageIndex >= state.pages.length - 1;
+    updateFooterIndicator(isLastPage);
+
+    // 出題フェーズでまだ途中のページなら選択肢を隠しておき、最後のページで上にポップアップさせる
+    if (state.phase === "question") {
+      if (isLastPage) {
+        el.choiceContainer.classList.remove("hidden");
+      } else {
+        el.choiceContainer.classList.add("hidden");
+      }
+    } else {
+      el.choiceContainer.classList.add("hidden");
+    }
 
     let idx = 0;
     state.typingTimer = setInterval(() => {
-      if (idx < text.length) {
-        el.dialogueText.textContent += text[idx];
+      if (idx < pageText.length) {
+        el.dialogueText.textContent += pageText[idx];
         if (idx % 3 === 0) {
           window.haruSound.playBlip(idx % 4);
         }
         idx++;
-        el.dialogueBody.scrollTop = el.dialogueBody.scrollHeight;
       } else {
         finishTypewriterImmediately();
       }
-    }, 24);
-
-    window.haruSound.speak(text, mood);
+    }, 22);
   }
 
   function finishTypewriterImmediately() {
@@ -296,10 +355,70 @@
       state.typingTimer = null;
     }
     el.dialogueText.textContent = state.fullCurrentText;
-    el.textCursor.classList.remove("hidden");
   }
 
-  // 配列シャッフル
+  function updateFooterIndicator(isLastPage) {
+    const totalPages = state.pages.length;
+    const pageBadge = totalPages > 1 ? `(${state.pageIndex + 1}/${totalPages}) ` : "";
+
+    if (!isLastPage) {
+      el.pageHintText.textContent = `${pageBadge}タップで続き`;
+      el.btnNextAction.textContent = "▼";
+    } else if (state.phase === "question") {
+      el.pageHintText.textContent = `${pageBadge}上の選択肢から回答`;
+      el.btnNextAction.textContent = totalPages > 1 ? "↺" : "▲";
+    } else if (state.phase === "reaction") {
+      el.pageHintText.textContent = "タップで真相解説へ";
+      el.btnNextAction.textContent = "解説 ▶";
+    } else if (state.phase === "explanation") {
+      const isLastQ = state.currentIndex + 1 >= state.deck.length;
+      el.pageHintText.textContent = isLastQ ? "タップで結果発表へ" : "タップで次の話へ";
+      el.btnNextAction.textContent = isLastQ ? "結果 ▶" : "次へ ▶";
+    }
+  }
+
+  // テキストウィンドウをタップした時の進行処理
+  function handleTextboxAdvance() {
+    // 1. タイピング中なら即座に全文表示
+    if (state.typingTimer) {
+      finishTypewriterImmediately();
+      return;
+    }
+
+    // 2. 次のページがあれば次ページへ
+    if (state.pageIndex < state.pages.length - 1) {
+      window.haruSound.playClick();
+      state.pageIndex++;
+      showCurrentPage();
+      return;
+    }
+
+    // 3. 最終ページでのフェーズ別アクション
+    if (state.phase === "question") {
+      // 複数ページある場合は1ページ目に戻して読み直せるようにする＆選択肢表示トグル
+      if (state.pages.length > 1) {
+        window.haruSound.playClick();
+        state.pageIndex = 0;
+        showCurrentPage();
+      } else {
+        el.choiceContainer.classList.toggle("hidden");
+      }
+    } else if (state.phase === "reaction") {
+      // リアクションの後は同じ3行ウィンドウ内で解説を表示
+      window.haruSound.playClick();
+      showExplanationInTextbox();
+    } else if (state.phase === "explanation") {
+      // 次の問題またはリザルトへ
+      window.haruSound.playClick();
+      state.currentIndex++;
+      if (state.currentIndex >= state.deck.length) {
+        showResultScreen();
+      } else {
+        presentCurrentQuestion();
+      }
+    }
+  }
+
   function shuffleArray(arr) {
     const copy = [...arr];
     for (let i = copy.length - 1; i > 0; i--) {
@@ -309,7 +428,6 @@
     return copy;
   }
 
-  // タイトル画面表示
   function showTitleScreen() {
     window.haruSound.stopSpeak();
     setSisterExpression("normal");
@@ -322,7 +440,6 @@
     updateLifetimeStatsUI();
   }
 
-  // 収録問題でゲーム開始
   function startCuratedGame(count, filterTopic = "") {
     state.lastModeCount = count;
     let pool = [...window.HARU_QUESTIONS];
@@ -358,38 +475,24 @@
     presentCurrentQuestion();
   }
 
-  // 問題出題
   function presentCurrentQuestion() {
     const q = state.deck[state.currentIndex];
-    state.isAnswering = true;
-
-    el.progressPill.textContent = `Q. ${state.currentIndex + 1} / ${state.deck.length}`;
+    el.progressPill.textContent = `Q.${state.currentIndex + 1}/${state.deck.length}`;
     el.categoryTag.textContent = q.category;
 
     el.judgeStamp.classList.add("hidden");
-    el.hintBalloon.classList.add("hidden");
-    el.explanationPanel.classList.add("hidden");
-    el.choiceContainer.classList.remove("hidden");
-    el.btnTsukkomi.classList.remove("hidden");
-    el.btnNextQuestion.classList.add("hidden");
+    el.pointChip.classList.add("hidden");
 
     setSisterExpression("normal");
-    startTypewriter(`「${q.statement}」`, "normal");
+    startPagedDialogue(`「${q.statement}」`, "normal", "question");
   }
 
-  // 回答判定
   function submitAnswer(guessedHallucination) {
-    if (!state.isAnswering) return;
-    state.isAnswering = false;
+    if (state.phase !== "question") return;
 
     const q = state.deck[state.currentIndex];
     const isCorrect = guessedHallucination === q.isHallucination;
 
-    // 4パターンの表情＆リアクション分岐
-    // 1. 嘘を見破った(正解) -> tehe
-    // 2. 嘘に騙された(不正解) -> doya
-    // 3. ホントを見抜いた(正解) -> happy
-    // 4. ホントを疑った(不正解) -> pout
     let nextExpr = "normal";
     let animClass = "";
 
@@ -398,7 +501,6 @@
       state.combo++;
       if (state.combo > state.maxCombo) state.maxCombo = state.combo;
       window.haruSound.playCorrect();
-
       nextExpr = q.isHallucination ? "tehe" : "happy";
       animClass = "anim-happy";
     } else {
@@ -409,48 +511,30 @@
         state.doubtedTruthCount++;
       }
       window.haruSound.playWrong();
-
       nextExpr = q.isHallucination ? "doya" : "pout";
       animClass = "anim-shock";
     }
 
-    // コンボ表示更新
     if (state.combo >= 2) {
-      el.comboPill.textContent = `🔥 ${state.combo} COMBO!`;
+      el.comboPill.textContent = `🔥 ${state.combo}`;
       el.comboPill.classList.remove("hidden");
     } else {
       el.comboPill.classList.add("hidden");
     }
 
-    // スタンプ表示
-    el.judgeStamp.className = "judge-stamp " + (isCorrect ? "stamp-correct" : "stamp-wrong");
+    // ネームプレート横にスリムな判定バッジを表示（顔は一切隠さない）
+    el.judgeStamp.className = "vn-judge-badge " + (isCorrect ? "stamp-correct" : "stamp-wrong");
     if (isCorrect) {
       el.judgeStamp.textContent = q.isHallucination ? "🎯 ハルシネ見破り！" : "✨ ガチ雑学正解！";
     } else {
-      el.judgeStamp.textContent = q.isHallucination ? "😈 お姉ちゃんに騙された！" : "💦 ホントの話でした！";
+      el.judgeStamp.textContent = q.isHallucination ? "😈 騙された〜！" : "💦 ホントでした！";
     }
 
     setSisterExpression(nextExpr, animClass);
 
-    // 姉のリアクションセリフ表示
     const reactionLine = isCorrect ? q.reactionCorrect : q.reactionWrong;
-    startTypewriter(`「${reactionLine}」`, nextExpr);
+    startPagedDialogue(`「${reactionLine}」`, nextExpr, "reaction");
 
-    // 解説パネル表示
-    el.pointChip.textContent = q.pointTag || (q.isHallucination ? "ハルシネーション解説" : "ガチ雑学解説");
-    el.pointChip.className = "point-chip " + (q.isHallucination ? "" : "truth-chip");
-    el.explanationText.textContent = q.explanation;
-    el.explanationPanel.classList.remove("hidden");
-
-    // ボタン切り替え
-    el.choiceContainer.classList.add("hidden");
-    el.btnTsukkomi.classList.add("hidden");
-    el.hintBalloon.classList.add("hidden");
-    el.btnNextQuestion.textContent =
-      state.currentIndex + 1 >= state.deck.length ? "🎉 診断結果を見る ▶" : "次のお姉ちゃんの話へ ▶";
-    el.btnNextQuestion.classList.remove("hidden");
-
-    // 履歴保存
     state.history.push({
       statement: q.statement,
       isHallucination: q.isHallucination,
@@ -458,7 +542,6 @@
       pointTag: q.pointTag
     });
 
-    // 通算成績保存
     const total = parseInt(localStorage.getItem("haru_total_played") || "0", 10) + 1;
     const corr = parseInt(localStorage.getItem("haru_total_correct") || "0", 10) + (isCorrect ? 1 : 0);
     const prevBest = parseInt(localStorage.getItem("haru_best_combo") || "0", 10);
@@ -469,7 +552,20 @@
     }
   }
 
-  // リザルト画面表示
+  // 同じ3行テキストボックス内に解説を表示
+  function showExplanationInTextbox() {
+    const q = state.deck[state.currentIndex];
+    el.pointChip.textContent = q.pointTag || (q.isHallucination ? "嘘ポイント" : "ガチ雑学");
+    el.pointChip.className = "vn-point-line " + (q.isHallucination ? "" : "truth-chip");
+    el.pointChip.classList.remove("hidden");
+
+    window.haruSound.stopSpeak();
+    state.phase = "explanation";
+    state.pages = splitIntoPages(q.explanation, 50);
+    state.pageIndex = 0;
+    showCurrentPage();
+  }
+
   function showResultScreen() {
     window.haruSound.playFanfare();
     el.quizScreen.classList.add("hidden");
@@ -485,7 +581,6 @@
     el.resultMaxCombo.textContent = `${state.maxCombo} 連続`;
     el.resultGullibility.textContent = `${gullibilityPct}%`;
 
-    // ランク判定とお姉ちゃんコメント
     let rank = "";
     let comment = "";
     let expr = "happy";
@@ -513,7 +608,6 @@
     setSisterExpression(expr, "anim-happy");
     window.haruSound.speak(comment, expr);
 
-    // 履歴リスト生成
     el.resultHistoryList.innerHTML = "";
     state.history.forEach((h, i) => {
       const row = document.createElement("div");
@@ -523,7 +617,7 @@
       row.innerHTML = `
         <div style="flex:1;">
           <strong>Q${i + 1} [${badge}]</strong> ${h.pointTag || ""}<br>
-          <span style="color:#6b5863;">${h.statement.slice(0, 44)}…</span>
+          <span style="color:#6b5863;">${h.statement.slice(0, 38)}…</span>
         </div>
         <strong style="white-space:nowrap;">${mark}</strong>
       `;
@@ -531,8 +625,9 @@
     });
   }
 
-  // 設定モーダル
   function openSettingsModal() {
+    el.rngOpacity.value = String(state.uiOpacityPct);
+    el.lblOpacity.textContent = `${state.uiOpacityPct}%`;
     el.chkVoice.checked = window.haruSound.voiceEnabled;
     el.chkSE.checked = window.haruSound.seEnabled;
     el.rngPitch.value = String(window.haruSound.voicePitch);
@@ -545,6 +640,10 @@
   }
 
   function saveSettingsFromModal() {
+    const opacityVal = parseInt(el.rngOpacity.value, 10);
+    applyUIOpacity(opacityVal);
+    localStorage.setItem("haru_ui_opacity", String(opacityVal));
+
     window.haruSound.setVoiceEnabled(el.chkVoice.checked);
     window.haruSound.setSEEnabled(el.chkSE.checked);
     window.haruSound.voicePitch = parseFloat(el.rngPitch.value);
@@ -563,14 +662,12 @@
     el.settingsModal.classList.add("hidden");
   }
 
-  // Gemini API でお姉ちゃんクイズを動的生成
   async function startAIGame() {
     const topic = el.inputCustomTopic.value.trim() || "おまかせの面白い雑学";
     const apiKey = (localStorage.getItem("haru_gemini_api_key") || "").trim();
     const model = localStorage.getItem("haru_gemini_model") || "gemini-2.5-flash";
 
     if (!apiKey) {
-      // APIキー未設定時はテーマに関連する収録問題を優先ピックアップしつつ案内
       openSettingsModal();
       return;
     }
