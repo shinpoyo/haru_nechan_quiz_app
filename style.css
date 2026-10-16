@@ -830,3 +830,100 @@ html, body {
   50% { transform: scale(1.08); }
   100% { transform: scale(1); }
 }
+
+.sub-mode-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* ボイスサンプル聴き比べカード一覧 */
+.voice-sample-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.sample-card {
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 2px solid #f2d5e2;
+  border-radius: 12px;
+  padding: 9px 11px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+}
+
+.sample-card:hover {
+  border-color: var(--pink-primary);
+  background: #fff8fb;
+}
+
+.sample-card.active {
+  border-color: var(--pink-primary);
+  background: #fff0f6;
+  box-shadow: 0 3px 10px rgba(255, 92, 147, 0.18);
+}
+
+.sample-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 3px;
+}
+
+.sample-badge {
+  font-size: 0.66rem;
+  font-weight: 900;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.badge-vv {
+  background: #fce7f3;
+  color: #be185d;
+}
+
+.badge-edge {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.badge-gemini {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.badge-web {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.sample-play-icon {
+  font-size: 0.72rem;
+  font-weight: 900;
+  color: var(--pink-dark);
+  background: #fff;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #fbcfe8;
+}
+
+.sample-name {
+  font-size: 0.84rem;
+  font-weight: 900;
+  color: var(--text-main);
+}
+
+.sample-desc {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.35;
+}
+

@@ -1,6 +1,8 @@
-// はるしねーちゃん メインゲームロジック（ギャルゲー風3行テキスト＆ポップアップ選択肢対応）
+// はるしねーちゃん メインゲームロジック（マルチ音声聴き比べ＆3行ノベルUI対応）
 
 (() => {
+  const SAMPLE_LINE = "ねえ知ってる？ ウォンバットのうんちって、実はサイコロみたいな四角形なんだよ！ えへへ、バレちゃった〜？";
+
   const state = {
     deck: [],
     currentIndex: 0,
@@ -11,7 +13,6 @@
     doubtedTruthCount: 0,
     history: [],
 
-    // 会話フェーズ: "question" | "reaction" | "explanation"
     phase: "question",
     pages: [],
     pageIndex: 0,
@@ -19,7 +20,8 @@
     fullCurrentText: "",
     currentMood: "normal",
     lastModeCount: 7,
-    uiOpacityPct: parseInt(localStorage.getItem("haru_ui_opacity") || "75", 10)
+    uiOpacityPct: parseInt(localStorage.getItem("haru_ui_opacity") || "75", 10),
+    currentVoiceLabel: localStorage.getItem("haru_voice_label") || "VOICEVOX（春日部つむぎ）"
   };
 
   const el = {
@@ -41,11 +43,12 @@
 
     btnStartStandard: document.getElementById("btnStartStandard"),
     btnStartAll: document.getElementById("btnStartAll"),
+    btnOpenVoiceSamples: document.getElementById("btnOpenVoiceSamples"),
     inputCustomTopic: document.getElementById("inputCustomTopic"),
     btnStartAIGen: document.getElementById("btnStartAIGen"),
     aiKeyStatusBadge: document.getElementById("aiKeyStatusBadge"),
+    currentVoiceBadge: document.getElementById("currentVoiceBadge"),
     statAccuracy: document.getElementById("statAccuracy"),
-    statBestCombo: document.getElementById("statBestCombo"),
 
     categoryTag: document.getElementById("categoryTag"),
     btnReplayVoice: document.getElementById("btnReplayVoice"),
@@ -71,15 +74,11 @@
 
     settingsModal: document.getElementById("settingsModal"),
     btnCloseSettings: document.getElementById("btnCloseSettings"),
+    voiceSampleGrid: document.getElementById("voiceSampleGrid"),
     rngOpacity: document.getElementById("rngOpacity"),
     lblOpacity: document.getElementById("lblOpacity"),
     chkVoice: document.getElementById("chkVoice"),
     chkSE: document.getElementById("chkSE"),
-    rngPitch: document.getElementById("rngPitch"),
-    lblPitch: document.getElementById("lblPitch"),
-    rngRate: document.getElementById("rngRate"),
-    lblRate: document.getElementById("lblRate"),
-    btnTestVoice: document.getElementById("btnTestVoice"),
     inputGeminiKey: document.getElementById("inputGeminiKey"),
     selectGeminiModel: document.getElementById("selectGeminiModel"),
     btnSaveSettings: document.getElementById("btnSaveSettings"),
@@ -101,6 +100,7 @@
     updateTopBarIcons();
     updateLifetimeStatsUI();
     updateAIKeyBadge();
+    syncSampleCardSelection();
 
     el.btnHomeLogo.addEventListener("click", () => {
       window.haruSound.playClick();
@@ -123,9 +123,62 @@
       openSettingsModal();
     });
 
+    if (el.btnOpenVoiceSamples) {
+      el.btnOpenVoiceSamples.addEventListener("click", () => {
+        window.haruSound.playClick();
+        openSettingsModal();
+      });
+    }
+
     el.btnCloseSettings.addEventListener("click", () => {
       window.haruSound.playClick();
+      window.haruSound.stopSpeak();
       el.settingsModal.classList.add("hidden");
+    });
+
+    // 🎧 ボイスサンプルカードのクリック試聴＆選択
+    const sampleCards = el.voiceSampleGrid.querySelectorAll(".sample-card");
+    sampleCards.forEach(card => {
+      card.addEventListener("click", async () => {
+        sampleCards.forEach(c => c.classList.remove("active"));
+        card.classList.add("active");
+
+        const engine = card.dataset.engine;
+        const speaker = parseInt(card.dataset.speaker || "8", 10);
+        const samplePath = card.dataset.sample || "";
+        const label = card.dataset.label || "";
+        const geminiVoice = card.dataset.geminiVoice || "Kore";
+
+        window.haruSound.ttsEngine = engine;
+        window.haruSound.voicevoxSpeaker = speaker;
+        window.haruSound.geminiVoiceName = geminiVoice;
+        window.haruSound.setVoiceEnabled(true);
+        el.chkVoice.checked = true;
+        updateTopBarIcons();
+
+        localStorage.setItem("haru_tts_engine", engine);
+        localStorage.setItem("haru_vv_speaker", String(speaker));
+        localStorage.setItem("haru_gemini_voice", geminiVoice);
+        localStorage.setItem("haru_voice_label", label);
+        state.currentVoiceLabel = label;
+        if (el.currentVoiceBadge) el.currentVoiceBadge.textContent = label;
+
+        // 試聴再生
+        if (samplePath) {
+          window.haruSound.playAudioUrl(samplePath);
+        } else if (engine === "gemini-tts") {
+          const apiKey = (el.inputGeminiKey.value || localStorage.getItem("haru_gemini_api_key") || "").trim();
+          if (!apiKey) {
+            alert("Gemini 2.5 Flash TTSを試聴するには、下の欄にGemini APIキーを入力してください！");
+            el.inputGeminiKey.focus();
+            return;
+          }
+          localStorage.setItem("haru_gemini_api_key", apiKey);
+          window.haruSound.speak(SAMPLE_LINE, "tehe");
+        } else {
+          window.haruSound.speakWithWebSpeech(SAMPLE_LINE, "normal");
+        }
+      });
     });
 
     el.rngOpacity.addEventListener("input", () => {
@@ -134,28 +187,10 @@
       applyUIOpacity(val);
     });
 
-    el.rngPitch.addEventListener("input", () => {
-      el.lblPitch.textContent = Number(el.rngPitch.value).toFixed(2);
-    });
-
-    el.rngRate.addEventListener("input", () => {
-      el.lblRate.textContent = Number(el.rngRate.value).toFixed(2);
-    });
-
-    el.btnTestVoice.addEventListener("click", () => {
-      window.haruSound.voicePitch = parseFloat(el.rngPitch.value);
-      window.haruSound.voiceRate = parseFloat(el.rngRate.value);
-      window.haruSound.setVoiceEnabled(true);
-      el.chkVoice.checked = true;
-      updateTopBarIcons();
-      window.haruSound.speak("ねえねえ、この雑学ってハルシネーションだと思う？ それともホントかな？", "normal");
-    });
-
     el.btnSaveSettings.addEventListener("click", () => {
       saveSettingsFromModal();
     });
 
-    // ゲーム開始
     el.btnStartStandard.addEventListener("click", () => {
       window.haruSound.playClick();
       startCuratedGame(7);
@@ -171,7 +206,6 @@
       startAIGame();
     });
 
-    // テキストボックスのタップ進行（文字送り完了 → 次ページ → 解説 → 次の問題）
     el.dialogueBody.addEventListener("click", (e) => {
       e.stopPropagation();
       handleTextboxAdvance();
@@ -189,11 +223,9 @@
       window.haruSound.speak(state.fullCurrentText, state.currentMood);
     });
 
-    // 選択肢クリック
     el.btnChooseHallucination.addEventListener("click", () => submitAnswer(true));
     el.btnChooseTruth.addEventListener("click", () => submitAnswer(false));
 
-    // ツッコミ（ヒント：顔を隠さず3行ウィンドウ内でお姉ちゃんが反応）
     el.btnTsukkomi.addEventListener("click", () => {
       const q = state.deck[state.currentIndex];
       if (!q) return;
@@ -201,7 +233,7 @@
       const hintMood = q.isHallucination ? "doya" : "pout";
       setSisterExpression(hintMood, "");
       const cleanHint = q.hint.replace(/^お姉ちゃん/, "");
-      startPagedDialogue(cleanHint, hintMood, "question");
+      startPagedDialogue(cleanHint, hintMood, "question", q.id ? `${q.id}_h` : "");
     });
 
     el.btnRetrySame.addEventListener("click", () => {
@@ -212,6 +244,17 @@
     el.btnBackToTitle.addEventListener("click", () => {
       window.haruSound.playClick();
       showTitleScreen();
+    });
+  }
+
+  function syncSampleCardSelection() {
+    if (el.currentVoiceBadge) {
+      el.currentVoiceBadge.textContent = state.currentVoiceLabel;
+    }
+    const cards = el.voiceSampleGrid.querySelectorAll(".sample-card");
+    cards.forEach(c => {
+      const match = c.dataset.label === state.currentVoiceLabel;
+      c.classList.toggle("active", match);
     });
   }
 
@@ -241,10 +284,7 @@
   function updateLifetimeStatsUI() {
     const total = parseInt(localStorage.getItem("haru_total_played") || "0", 10);
     const correct = parseInt(localStorage.getItem("haru_total_correct") || "0", 10);
-    const bestCombo = parseInt(localStorage.getItem("haru_best_combo") || "0", 10);
-
     el.statAccuracy.textContent = total > 0 ? `${Math.round((correct / total) * 100)}% (${correct}/${total}問)` : "--%";
-    el.statBestCombo.textContent = String(bestCombo);
   }
 
   function setSisterExpression(expr, animateType = "") {
@@ -263,12 +303,10 @@
     }
   }
 
-  // 長い文章を3行以内（約52文字目安）の自然なページに分割
   function splitIntoPages(text, maxLen = 54) {
     const cleaned = text.trim();
     if (cleaned.length <= maxLen) return [cleaned];
 
-    // 句点・感嘆符・疑問符・読点で区切る
     const tokens = cleaned.split(/(?<=[！？。…])/);
     const pages = [];
     let current = "";
@@ -281,7 +319,6 @@
         if (token.length <= maxLen) {
           current = token;
         } else {
-          // 1文が長い場合は読点「、」または文字数で分割
           const subTokens = token.split(/(?<=、)/);
           let subCur = "";
           for (const st of subTokens) {
@@ -300,14 +337,12 @@
     return pages.length > 0 ? pages : [cleaned];
   }
 
-  // ページ分割付きテキスト表示開始
-  function startPagedDialogue(fullText, mood, phase) {
+  function startPagedDialogue(fullText, mood, phase, pregenKey = "") {
     state.phase = phase;
     state.pages = splitIntoPages(fullText);
     state.pageIndex = 0;
 
-    // ボイスは全文を滑らかに読み上げ
-    window.haruSound.speak(fullText, mood);
+    window.haruSound.speak(fullText, mood, pregenKey);
     showCurrentPage();
   }
 
@@ -324,7 +359,6 @@
     const isLastPage = state.pageIndex >= state.pages.length - 1;
     updateFooterIndicator(isLastPage);
 
-    // 出題フェーズでまだ途中のページなら選択肢を隠しておき、最後のページで上にポップアップさせる
     if (state.phase === "question") {
       if (isLastPage) {
         el.choiceContainer.classList.remove("hidden");
@@ -377,15 +411,12 @@
     }
   }
 
-  // テキストウィンドウをタップした時の進行処理
   function handleTextboxAdvance() {
-    // 1. タイピング中なら即座に全文表示
     if (state.typingTimer) {
       finishTypewriterImmediately();
       return;
     }
 
-    // 2. 次のページがあれば次ページへ
     if (state.pageIndex < state.pages.length - 1) {
       window.haruSound.playClick();
       state.pageIndex++;
@@ -393,9 +424,7 @@
       return;
     }
 
-    // 3. 最終ページでのフェーズ別アクション
     if (state.phase === "question") {
-      // 複数ページある場合は1ページ目に戻して読み直せるようにする＆選択肢表示トグル
       if (state.pages.length > 1) {
         window.haruSound.playClick();
         state.pageIndex = 0;
@@ -404,11 +433,9 @@
         el.choiceContainer.classList.toggle("hidden");
       }
     } else if (state.phase === "reaction") {
-      // リアクションの後は同じ3行ウィンドウ内で解説を表示
       window.haruSound.playClick();
       showExplanationInTextbox();
     } else if (state.phase === "explanation") {
-      // 次の問題またはリザルトへ
       window.haruSound.playClick();
       state.currentIndex++;
       if (state.currentIndex >= state.deck.length) {
@@ -484,7 +511,7 @@
     el.pointChip.classList.add("hidden");
 
     setSisterExpression("normal");
-    startPagedDialogue(`「${q.statement}」`, "normal", "question");
+    startPagedDialogue(`「${q.statement}」`, "normal", "question", q.id ? `${q.id}_q` : "");
   }
 
   function submitAnswer(guessedHallucination) {
@@ -522,7 +549,6 @@
       el.comboPill.classList.add("hidden");
     }
 
-    // ネームプレート横にスリムな判定バッジを表示（顔は一切隠さない）
     el.judgeStamp.className = "vn-judge-badge " + (isCorrect ? "stamp-correct" : "stamp-wrong");
     if (isCorrect) {
       el.judgeStamp.textContent = q.isHallucination ? "🎯 ハルシネ見破り！" : "✨ ガチ雑学正解！";
@@ -533,7 +559,8 @@
     setSisterExpression(nextExpr, animClass);
 
     const reactionLine = isCorrect ? q.reactionCorrect : q.reactionWrong;
-    startPagedDialogue(`「${reactionLine}」`, nextExpr, "reaction");
+    const pregenKey = q.id ? `${q.id}_${isCorrect ? "c" : "w"}` : "";
+    startPagedDialogue(`「${reactionLine}」`, nextExpr, "reaction", pregenKey);
 
     state.history.push({
       statement: q.statement,
@@ -552,7 +579,6 @@
     }
   }
 
-  // 同じ3行テキストボックス内に解説を表示
   function showExplanationInTextbox() {
     const q = state.deck[state.currentIndex];
     el.pointChip.textContent = q.pointTag || (q.isHallucination ? "嘘ポイント" : "ガチ雑学");
@@ -630,12 +656,9 @@
     el.lblOpacity.textContent = `${state.uiOpacityPct}%`;
     el.chkVoice.checked = window.haruSound.voiceEnabled;
     el.chkSE.checked = window.haruSound.seEnabled;
-    el.rngPitch.value = String(window.haruSound.voicePitch);
-    el.lblPitch.textContent = window.haruSound.voicePitch.toFixed(2);
-    el.rngRate.value = String(window.haruSound.voiceRate);
-    el.lblRate.textContent = window.haruSound.voiceRate.toFixed(2);
     el.inputGeminiKey.value = localStorage.getItem("haru_gemini_api_key") || "";
     el.selectGeminiModel.value = localStorage.getItem("haru_gemini_model") || "gemini-2.5-flash";
+    syncSampleCardSelection();
     el.settingsModal.classList.remove("hidden");
   }
 
@@ -646,10 +669,6 @@
 
     window.haruSound.setVoiceEnabled(el.chkVoice.checked);
     window.haruSound.setSEEnabled(el.chkSE.checked);
-    window.haruSound.voicePitch = parseFloat(el.rngPitch.value);
-    window.haruSound.voiceRate = parseFloat(el.rngRate.value);
-    localStorage.setItem("haru_voice_pitch", String(window.haruSound.voicePitch));
-    localStorage.setItem("haru_voice_rate", String(window.haruSound.voiceRate));
 
     const apiKey = el.inputGeminiKey.value.trim();
     const model = el.selectGeminiModel.value;
@@ -658,6 +677,7 @@
 
     updateTopBarIcons();
     updateAIKeyBadge();
+    window.haruSound.stopSpeak();
     window.haruSound.playClick();
     el.settingsModal.classList.add("hidden");
   }

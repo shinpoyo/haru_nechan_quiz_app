@@ -25,7 +25,7 @@
         <img src="assets/haru_pout.jpg" alt="はるしねーちゃん むーっ" class="char-layer" data-expr="pout" />
       </div>
 
-      <!-- フローティング上部HUD（ノベルゲーム風に画面上部へスッキリ配置） -->
+      <!-- フローティング上部HUD -->
       <header class="floating-hud">
         <div class="hud-left">
           <button class="home-pill" id="btnHomeLogo" title="タイトルへ戻る">
@@ -39,7 +39,7 @@
         <div class="hud-right">
           <button class="hud-icon-btn" id="btnToggleVoice" title="ボイス読み上げ ON/OFF" aria-label="ボイス切替">🔊</button>
           <button class="hud-icon-btn" id="btnToggleSE" title="効果音 ON/OFF" aria-label="効果音切替">🎵</button>
-          <button class="hud-icon-btn" id="btnOpenSettings" title="透過度・ボイス・AI設定" aria-label="設定を開く">⚙️</button>
+          <button class="hud-icon-btn" id="btnOpenSettings" title="声の聴き比べ・透過度・AI設定" aria-label="設定を開く">⚙️</button>
         </div>
       </header>
 
@@ -62,10 +62,14 @@
               <span class="btn-sub-text">厳選雑学＆ハルシネーションから出題！</span>
             </button>
 
-            <button class="secondary-btn endless-btn" id="btnStartAll">
-              <span class="btn-main-text">🔥 とことん15問モード</span>
-              <span class="btn-sub-text">お姉ちゃんのマシンガントークに耐えきれ！</span>
-            </button>
+            <div class="sub-mode-row">
+              <button class="secondary-btn endless-btn" id="btnStartAll">
+                <span class="btn-main-text">🔥 15問モード</span>
+              </button>
+              <button class="secondary-btn voice-sample-open-btn" id="btnOpenVoiceSamples">
+                <span class="btn-main-text">🎧 声の聴き比べ</span>
+              </button>
+            </div>
 
             <div class="ai-custom-box">
               <div class="ai-box-header">
@@ -87,7 +91,7 @@
           </div>
 
           <div class="lifetime-stats" id="lifetimeStats">
-            通算見破り率：<strong id="statAccuracy">--%</strong>（最高 <strong id="statBestCombo">0</strong> 連続正解）
+            現在の声：<strong id="currentVoiceBadge">VOICEVOX（春日部つむぎ）</strong> ｜ 見破り率：<strong id="statAccuracy">--%</strong>
           </div>
         </div>
       </section>
@@ -114,14 +118,12 @@
 
         <!-- 画面下部のスッキリ3行テキストウィンドウ -->
         <div class="vn-textbox-wrap">
-          <!-- ネームプレート＆判定バッジ行（テキストボックスのすぐ上） -->
           <div class="vn-textbox-top-row">
             <div class="vn-nameplate">
               <span class="vn-speaker-name">はるしねーちゃん</span>
               <span class="vn-mood-badge" id="emotionBubble">☝️ 自信満々</span>
             </div>
 
-            <!-- 回答時の判定リボン（顔を隠さずネームプレート横にスッキリ表示） -->
             <div class="vn-judge-badge hidden" id="judgeStamp">🎯 見破り成功！</div>
 
             <div class="vn-meta-controls">
@@ -135,7 +137,6 @@
             <div class="vn-point-line hidden" id="pointChip"></div>
             <p class="vn-dialogue-text" id="dialogueText"></p>
 
-            <!-- 右下の進行インジケーター / アクションボタン -->
             <div class="vn-textbox-footer">
               <span class="vn-page-hint" id="pageHintText">タップで進む</span>
               <button class="vn-next-inline-btn" id="btnNextAction">▼</button>
@@ -144,7 +145,7 @@
         </div>
       </section>
 
-      <!-- ===== 3. リザルト（お姉ちゃん理解度＆騙され度診断）画面 ===== -->
+      <!-- ===== 3. リザルト画面 ===== -->
       <section class="overlay-screen result-screen hidden" id="resultScreen">
         <div class="result-card">
           <div class="result-header-tag">🎉 結果発表＆お姉ちゃん診断 🎉</div>
@@ -181,15 +182,117 @@
       </section>
     </main>
 
-    <!-- ===== 設定モーダル（透過度スライダー・Gemini APIキー・ボイス調整） ===== -->
+    <!-- ===== 設定＆ボイスサンプル聴き比べモーダル ===== -->
     <div class="modal-backdrop hidden" id="settingsModal">
       <div class="modal-card">
         <div class="modal-header">
-          <h3>⚙️ はるしねーちゃん設定</h3>
+          <h3>⚙️ ボイス聴き比べ＆設定</h3>
           <button class="close-modal-btn" id="btnCloseSettings">✕</button>
         </div>
 
         <div class="modal-body">
+          <!-- 🎧 ボイスモデル聴き比べ＆選択セクション -->
+          <div class="setting-group">
+            <label class="setting-label">🎧 お姉ちゃんの声サンプル聴き比べ（タップで試聴＆選択）</label>
+            <p class="setting-help">
+              同じセリフ「ねえ知ってる？ ウォンバットのうんちって…」を各音声モデルで聴き比べられます！気に入った声をタップするとそのままゲームに適用されます。
+            </p>
+
+            <div class="voice-sample-grid" id="voiceSampleGrid">
+              <!-- ① VOICEVOX 春日部つむぎ -->
+              <button type="button" class="sample-card active" data-engine="voicevox" data-speaker="8" data-sample="assets/voice_samples/voicevox_tsumugi.mp3" data-label="VOICEVOX（春日部つむぎ）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-vv">人気No.1 アニメ声</span>
+                  <span class="sample-play-icon">▶️ 試聴</span>
+                </div>
+                <div class="sample-name">春日部つむぎ（VOICEVOX）</div>
+                <div class="sample-desc">元気でちょっとギャルっぽい、愛嬌抜群のお姉ちゃん声！（無料）</div>
+              </button>
+
+              <!-- ② VOICEVOX 四国めたん（ノーマル） -->
+              <button type="button" class="sample-card" data-engine="voicevox" data-speaker="2" data-sample="assets/voice_samples/voicevox_metan.mp3" data-label="VOICEVOX（四国めたん）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-vv">感情スタイル自動変化</span>
+                  <span class="sample-play-icon">▶️ 試聴</span>
+                </div>
+                <div class="sample-name">四国めたん・標準（VOICEVOX）</div>
+                <div class="sample-desc">ハキハキした王道ヒロイン声。表情に合わせて「あまあま」「ツンツン」に自動変化！</div>
+              </button>
+
+              <!-- ③ VOICEVOX 四国めたん（あまあま） -->
+              <button type="button" class="sample-card" data-engine="voicevox" data-speaker="0" data-sample="assets/voice_samples/voicevox_metan_ama.mp3" data-label="VOICEVOX（めたん・あまあま）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-vv">あまあまボイス</span>
+                  <span class="sample-play-icon">▶️ 試聴</span>
+                </div>
+                <div class="sample-name">四国めたん・あまあま（VOICEVOX）</div>
+                <div class="sample-desc">甘やかしてくれる優しいお姉ちゃん声でずっと喋ります♪</div>
+              </button>
+
+              <!-- ④ VOICEVOX もち子さん -->
+              <button type="button" class="sample-card" data-engine="voicevox" data-speaker="20" data-sample="assets/voice_samples/voicevox_mochiko.mp3" data-label="VOICEVOX（もち子さん）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-vv">清楚・お姉さん</span>
+                  <span class="sample-play-icon">▶️ 試聴</span>
+                </div>
+                <div class="sample-name">もち子さん（VOICEVOX）</div>
+                <div class="sample-desc">柔らかくて清楚な、まさに「優しいお姉さん」なアニメボイス！</div>
+              </button>
+
+              <!-- ⑤ VOICEVOX No.7 -->
+              <button type="button" class="sample-card" data-engine="voicevox" data-speaker="29" data-sample="assets/voice_samples/voicevox_no7.mp3" data-label="VOICEVOX（No.7）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-vv">大人のお姉さん</span>
+                  <span class="sample-play-icon">▶️ 試聴</span>
+                </div>
+                <div class="sample-name">No.7 セブン（VOICEVOX）</div>
+                <div class="sample-desc">落ち着きと艶のある、知的で大人っぽいお姉さんボイス！</div>
+              </button>
+
+              <!-- ⑥ Edge Neural 七海（お姉ちゃん調） -->
+              <button type="button" class="sample-card" data-engine="edge-neural" data-speaker="0" data-sample="assets/voice_samples/edge_nanami_sister.mp3" data-label="Edge Neural（七海・姉調）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-edge">完全無料・爆速</span>
+                  <span class="sample-play-icon">▶️ 試聴</span>
+                </div>
+                <div class="sample-name">Microsoft 七海 Neural（高めお姉ちゃん調）</div>
+                <div class="sample-desc">棒読み感のない滑らかなニューラル音声（ピッチ＆テンポ調整版）</div>
+              </button>
+
+              <!-- ⑦ Edge Neural 七海（ナチュラル） -->
+              <button type="button" class="sample-card" data-engine="edge-neural" data-speaker="1" data-sample="assets/voice_samples/edge_nanami.mp3" data-label="Edge Neural（七海・標準）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-edge">完全無料・自然</span>
+                  <span class="sample-play-icon">▶️ 試聴</span>
+                </div>
+                <div class="sample-name">Microsoft 七海 Neural（ナチュラル）</div>
+                <div class="sample-desc">ニュースやナレーションのように聞き取りやすく自然な女性の声</div>
+              </button>
+
+              <!-- ⑧ Gemini 2.5 Flash TTS -->
+              <button type="button" class="sample-card" data-engine="gemini-tts" data-gemini-voice="Kore" data-sample="" data-label="Gemini 2.5 TTS（Kore）">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-gemini">AI演技指導対応</span>
+                  <span class="sample-play-icon">▶️ AI試聴</span>
+                </div>
+                <div class="sample-name">Gemini 2.5 Flash TTS（要APIキー）</div>
+                <div class="sample-desc">Gemini APIキーを使って「ドヤ顔」「てへぺろ」等の演技指導付きでリアルタイム発話！</div>
+              </button>
+
+              <!-- ⑨ ブラウザ標準 Web Speech -->
+              <button type="button" class="sample-card" data-engine="webspeech" data-speaker="0" data-sample="" data-label="ブラウザ標準音声">
+                <div class="sample-card-top">
+                  <span class="sample-badge badge-web">通信ゼロ</span>
+                  <span class="sample-play-icon">▶️ 試聴</span>
+                </div>
+                <div class="sample-name">ブラウザ内蔵 Web Speech API</div>
+                <div class="sample-desc">スマホ・PC内蔵の標準合成音声（端末によって声質が変わります）</div>
+              </button>
+            </div>
+          </div>
+
+          <hr class="modal-divider" />
+
           <!-- ウィンドウ＆選択肢の透過度設定 -->
           <div class="setting-group">
             <label class="setting-label">🪟 ウィンドウ・選択肢の背景透過度</label>
@@ -197,41 +300,26 @@
               <span>背景の濃さ（不透明度）: <strong id="lblOpacity">75%</strong></span>
               <input type="range" id="rngOpacity" min="25" max="98" step="1" value="75" />
             </div>
-            <p class="setting-help">
-              ※数値を下げるとテキストウィンドウや選択肢がより透明になり、お姉ちゃんの立ち絵が透けて見えます。
-            </p>
           </div>
 
           <hr class="modal-divider" />
 
           <div class="setting-group">
-            <label class="setting-label">🔊 サウンド＆お姉ちゃんボイス設定</label>
+            <label class="setting-label">🔊 音量・ON/OFF設定</label>
             <div class="toggle-row">
-              <span>ボイス読み上げ（Web Speech API）</span>
+              <span>ボイス読み上げ</span>
               <input type="checkbox" id="chkVoice" checked />
             </div>
             <div class="toggle-row">
               <span>効果音（SE）</span>
               <input type="checkbox" id="chkSE" checked />
             </div>
-            <div class="slider-row">
-              <span>声の高さ（ピッチ）: <strong id="lblPitch">1.18</strong></span>
-              <input type="range" id="rngPitch" min="0.8" max="1.5" step="0.02" value="1.18" />
-            </div>
-            <div class="slider-row">
-              <span>話すスピード: <strong id="lblRate">1.08</strong></span>
-              <input type="range" id="rngRate" min="0.8" max="1.4" step="0.02" value="1.08" />
-            </div>
-            <button class="small-btn" id="btnTestVoice">🎤 ボイスをテスト再生する</button>
           </div>
 
           <hr class="modal-divider" />
 
           <div class="setting-group">
-            <label class="setting-label">🤖 Gemini APIキー設定（AI無限問題生成用）</label>
-            <p class="setting-help">
-              APIキーを設定すると、好きなテーマでお姉ちゃんが新しいクイズをリアルタイム生成します（端末内のlocalStorageにのみ保存）。
-            </p>
+            <label class="setting-label">🤖 Gemini APIキー設定（AI問題生成＆Gemini TTS用）</label>
             <input
               type="password"
               id="inputGeminiKey"
@@ -240,7 +328,7 @@
               autocomplete="off"
             />
             <div class="setting-row-inline">
-              <label for="selectGeminiModel">使用モデル:</label>
+              <label for="selectGeminiModel">出題モデル:</label>
               <select id="selectGeminiModel" class="select-input">
                 <option value="gemini-2.5-flash">gemini-2.5-flash（推奨・高速）</option>
                 <option value="gemini-2.0-flash">gemini-2.0-flash</option>
@@ -250,7 +338,7 @@
         </div>
 
         <div class="modal-footer">
-          <button class="primary-btn save-btn" id="btnSaveSettings">保存して閉じる</button>
+          <button class="primary-btn save-btn" id="btnSaveSettings">この設定で保存して閉じる</button>
         </div>
       </div>
     </div>
