@@ -1,8 +1,6 @@
-// はるしねーちゃん メインゲームロジック（マルチ音声聴き比べ＆3行ノベルUI対応）
+// はるしねーちゃん メインゲームロジック（春野詩音・ノベル風UI・確実な意味分割ページネーション）
 
 (() => {
-  const SAMPLE_LINE = "ねえ知ってる？ ウォンバットのうんちって、実はサイコロみたいな四角形なんだよ！ えへへ、バレちゃった〜？";
-
   const state = {
     deck: [],
     currentIndex: 0,
@@ -13,15 +11,14 @@
     doubtedTruthCount: 0,
     history: [],
 
-    phase: "question",
+    phase: "question", // "question" | "reaction" | "explanation"
     pages: [],
     pageIndex: 0,
     typingTimer: null,
     fullCurrentText: "",
     currentMood: "normal",
     lastModeCount: 7,
-    uiOpacityPct: parseInt(localStorage.getItem("haru_ui_opacity") || "75", 10),
-    currentVoiceLabel: localStorage.getItem("haru_voice_label") || "Aoede（いたずら少女調）"
+    uiOpacityPct: parseInt(localStorage.getItem("haru_ui_opacity") || "75", 10)
   };
 
   const el = {
@@ -42,12 +39,6 @@
     resultScreen: document.getElementById("resultScreen"),
 
     btnStartStandard: document.getElementById("btnStartStandard"),
-    btnStartAll: document.getElementById("btnStartAll"),
-    btnOpenVoiceSamples: document.getElementById("btnOpenVoiceSamples"),
-    inputCustomTopic: document.getElementById("inputCustomTopic"),
-    btnStartAIGen: document.getElementById("btnStartAIGen"),
-    aiKeyStatusBadge: document.getElementById("aiKeyStatusBadge"),
-    currentVoiceBadge: document.getElementById("currentVoiceBadge"),
     statAccuracy: document.getElementById("statAccuracy"),
 
     categoryTag: document.getElementById("categoryTag"),
@@ -74,17 +65,11 @@
 
     settingsModal: document.getElementById("settingsModal"),
     btnCloseSettings: document.getElementById("btnCloseSettings"),
-    voiceSampleGrid: document.getElementById("voiceSampleGrid"),
     rngOpacity: document.getElementById("rngOpacity"),
     lblOpacity: document.getElementById("lblOpacity"),
     chkVoice: document.getElementById("chkVoice"),
     chkSE: document.getElementById("chkSE"),
-    inputGeminiKey: document.getElementById("inputGeminiKey"),
-    selectGeminiModel: document.getElementById("selectGeminiModel"),
-    btnSaveSettings: document.getElementById("btnSaveSettings"),
-
-    loadingOverlay: document.getElementById("loadingOverlay"),
-    loadingTitle: document.getElementById("loadingTitle")
+    btnSaveSettings: document.getElementById("btnSaveSettings")
   };
 
   const EXPR_META = {
@@ -99,8 +84,6 @@
     applyUIOpacity(state.uiOpacityPct);
     updateTopBarIcons();
     updateLifetimeStatsUI();
-    updateAIKeyBadge();
-    syncSampleCardSelection();
 
     el.btnHomeLogo.addEventListener("click", () => {
       window.haruSound.playClick();
@@ -123,65 +106,10 @@
       openSettingsModal();
     });
 
-    if (el.btnOpenVoiceSamples) {
-      el.btnOpenVoiceSamples.addEventListener("click", () => {
-        window.haruSound.playClick();
-        openSettingsModal();
-      });
-    }
-
     el.btnCloseSettings.addEventListener("click", () => {
       window.haruSound.playClick();
       window.haruSound.stopSpeak();
       el.settingsModal.classList.add("hidden");
-    });
-
-    // 🎧 ボイスサンプルカードのクリック試聴＆選択
-    const sampleCards = el.voiceSampleGrid.querySelectorAll(".sample-card");
-    sampleCards.forEach(card => {
-      card.addEventListener("click", async () => {
-        sampleCards.forEach(c => c.classList.remove("active"));
-        card.classList.add("active");
-
-        const engine = card.dataset.engine;
-        const speaker = parseInt(card.dataset.speaker || "8", 10);
-        const samplePath = card.dataset.sample || "";
-        const label = card.dataset.label || "";
-        const geminiVoice = card.dataset.geminiVoice || "Aoede";
-        const ttsModel = card.dataset.ttsModel || "gemini-2.5-pro-preview-tts";
-
-        window.haruSound.ttsEngine = engine;
-        window.haruSound.voicevoxSpeaker = speaker;
-        window.haruSound.geminiVoiceName = geminiVoice;
-        window.haruSound.geminiTtsModel = ttsModel;
-        window.haruSound.setVoiceEnabled(true);
-        el.chkVoice.checked = true;
-        updateTopBarIcons();
-
-        localStorage.setItem("haru_tts_engine", engine);
-        localStorage.setItem("haru_vv_speaker", String(speaker));
-        localStorage.setItem("haru_gemini_voice", geminiVoice);
-        localStorage.setItem("haru_gemini_tts_model", ttsModel);
-        localStorage.setItem("haru_voice_label", label);
-        state.currentVoiceLabel = label;
-        if (el.currentVoiceBadge) el.currentVoiceBadge.textContent = label;
-
-        // 試聴再生
-        if (samplePath) {
-          window.haruSound.playAudioUrl(samplePath);
-        } else if (engine === "gemini-tts") {
-          const apiKey = (el.inputGeminiKey.value || localStorage.getItem("haru_gemini_api_key") || "").trim();
-          if (!apiKey) {
-            alert("Gemini 2.5 Flash TTSを試聴するには、下の欄にGemini APIキーを入力してください！");
-            el.inputGeminiKey.focus();
-            return;
-          }
-          localStorage.setItem("haru_gemini_api_key", apiKey);
-          window.haruSound.speak(SAMPLE_LINE, "tehe");
-        } else {
-          window.haruSound.speakWithWebSpeech(SAMPLE_LINE, "normal");
-        }
-      });
     });
 
     el.rngOpacity.addEventListener("input", () => {
@@ -197,16 +125,6 @@
     el.btnStartStandard.addEventListener("click", () => {
       window.haruSound.playClick();
       startCuratedGame(7);
-    });
-
-    el.btnStartAll.addEventListener("click", () => {
-      window.haruSound.playClick();
-      startCuratedGame(15);
-    });
-
-    el.btnStartAIGen.addEventListener("click", () => {
-      window.haruSound.playClick();
-      startAIGame();
     });
 
     el.dialogueBody.addEventListener("click", (e) => {
@@ -250,24 +168,6 @@
     });
   }
 
-  function syncSampleCardSelection() {
-    const validLabels = ["Aoede（いたずら少女調）", "七海（甘め）"];
-    if (!validLabels.includes(state.currentVoiceLabel)) {
-      state.currentVoiceLabel = "Aoede（いたずら少女調）";
-      window.haruSound.ttsEngine = "gemini-tts";
-      localStorage.setItem("haru_voice_label", state.currentVoiceLabel);
-      localStorage.setItem("haru_tts_engine", "gemini-tts");
-    }
-    if (el.currentVoiceBadge) {
-      el.currentVoiceBadge.textContent = state.currentVoiceLabel;
-    }
-    const cards = el.voiceSampleGrid.querySelectorAll(".sample-card");
-    cards.forEach(c => {
-      const match = c.dataset.label === state.currentVoiceLabel;
-      c.classList.toggle("active", match);
-    });
-  }
-
   function applyUIOpacity(pct) {
     state.uiOpacityPct = pct;
     const alpha = Math.max(0.2, Math.min(0.98, pct / 100));
@@ -278,17 +178,6 @@
     el.btnToggleVoice.classList.toggle("muted", !window.haruSound.voiceEnabled);
     el.btnToggleVoice.textContent = window.haruSound.voiceEnabled ? "🔊" : "🔇";
     el.btnToggleSE.classList.toggle("muted", !window.haruSound.seEnabled);
-  }
-
-  function updateAIKeyBadge() {
-    const key = localStorage.getItem("haru_gemini_api_key") || "";
-    if (key.trim()) {
-      el.aiKeyStatusBadge.textContent = "✅ Gemini API連携ON";
-      el.aiKeyStatusBadge.style.color = "#047857";
-    } else {
-      el.aiKeyStatusBadge.textContent = "APIキー未設定（設定⚙️から登録可）";
-      el.aiKeyStatusBadge.style.color = "#735868";
-    }
   }
 
   function updateLifetimeStatsUI() {
@@ -313,7 +202,7 @@
     }
   }
 
-  // 括弧（『』「」（））の入れ子を考慮した文分割（括弧内の！？。では切らない）
+  // 括弧（『』「」（））の入れ子を考慮した文末記号による文分割
   function splitSentencesRespectingQuotes(text) {
     const result = [];
     let cur = "";
@@ -331,11 +220,9 @@
       else if (ch === "（" || ch === "(") inParen++;
       else if (ch === "）" || ch === ")") inParen = Math.max(0, inParen - 1);
 
-      // 括弧の外側で文末記号（！、？、。）が来た時のみ文の区切りとする
       if (inDouble === 0 && inSingle === 0 && inParen === 0) {
         if (/[！？。]/.test(ch)) {
-          // 直後の閉じ括弧や三点リーダー・ダッシュを巻き込む
-          while (i + 1 < text.length && /[」』）〜…\s]/.test(text[i + 1])) {
+          while (i + 1 < text.length && /[」』）〜…\s！？。]/.test(text[i + 1])) {
             cur += text[++i];
           }
           result.push(cur.trim());
@@ -347,31 +234,120 @@
     return result;
   }
 
-  // 意味の区切れ（文単位）を保ち、3行（約85文字）に収まるよう自然にページ分割
-  function splitIntoPages(text, maxLen = 85) {
+  // 1文が maxLen を超える場合、意味の区切れ（接続助詞・読点）で安全に句分割
+  function splitLongSentenceByClauses(sentence, maxLen = 70) {
+    if (sentence.length <= maxLen) return [sentence];
+
+    let inDouble = 0;
+    let inSingle = 0;
+    let inParen = 0;
+    const breakPoints = [];
+
+    for (let i = 0; i < sentence.length; i++) {
+      const ch = sentence[i];
+      if (ch === "『") inDouble++;
+      else if (ch === "』") inDouble = Math.max(0, inDouble - 1);
+      else if (ch === "「") inSingle++;
+      else if (ch === "」") inSingle = Math.max(0, inSingle - 1);
+      else if (ch === "（" || ch === "(") inParen++;
+      else if (ch === "）" || ch === ")") inParen = Math.max(0, inParen - 1);
+
+      if (inDouble === 0 && inSingle === 0 && inParen === 0) {
+        if (ch === "、") {
+          const prev10 = sentence.slice(Math.max(0, i - 8), i + 1);
+          let weight = 10;
+          if (/(から|けど|けれど|ので|のに|だが|が|ため|であり|ものの|たり|して)、$/.test(prev10)) {
+            weight = 30;
+          }
+          if (/[』」）]、$/.test(sentence.slice(Math.max(0, i - 2), i + 1))) {
+            weight = 40;
+          }
+          breakPoints.push({ index: i + 1, weight });
+        }
+      }
+    }
+
+    if (breakPoints.length === 0) {
+      const res = [];
+      let rem = sentence;
+      while (rem.length > maxLen) {
+        res.push(rem.slice(0, maxLen));
+        rem = rem.slice(maxLen);
+      }
+      if (rem) res.push(rem);
+      return res;
+    }
+
+    const chunks = [];
+    let start = 0;
+
+    while (start < sentence.length) {
+      const remaining = sentence.slice(start);
+      if (remaining.length <= maxLen) {
+        chunks.push(remaining);
+        break;
+      }
+
+      const validPoints = breakPoints.filter(bp => bp.index >= start + 25 && bp.index <= start + maxLen);
+
+      if (validPoints.length > 0) {
+        validPoints.sort((a, b) => (b.weight - a.weight) || (b.index - a.index));
+        const chosen = validPoints[0].index;
+        chunks.push(sentence.slice(start, chosen));
+        start = chosen;
+      } else {
+        const fallbackPoints = breakPoints.filter(bp => bp.index > start);
+        if (fallbackPoints.length > 0 && fallbackPoints[0].index <= start + maxLen + 12) {
+          const chosen = fallbackPoints[0].index;
+          chunks.push(sentence.slice(start, chosen));
+          start = chosen;
+        } else {
+          const cut = Math.min(start + maxLen, sentence.length);
+          chunks.push(sentence.slice(start, cut));
+          start = cut;
+        }
+      }
+    }
+
+    return chunks;
+  }
+
+  // 意味の区切れ（文単位・接続句単位）を保ち、スマホ3行に余裕を持って収まるよう自然にページ分割
+  function splitIntoPages(text, maxLen = 70) {
     let cleaned = text.trim();
     const isQuote = cleaned.startsWith("「") || !cleaned.startsWith("【");
     cleaned = cleaned.replace(/^「|」$/g, "").trim();
 
-    const sentences = splitSentencesRespectingQuotes(cleaned);
-    if (sentences.length <= 1) {
-      return isQuote && !cleaned.startsWith("【") ? [`「${cleaned}」`] : [cleaned];
+    const rawSentences = splitSentencesRespectingQuotes(cleaned);
+    const units = [];
+    for (const s of rawSentences) {
+      if (s.length <= maxLen) {
+        units.push(s);
+      } else {
+        units.push(...splitLongSentenceByClauses(s, maxLen));
+      }
     }
 
     const pages = [];
     let cur = "";
 
-    for (const s of sentences) {
+    for (const u of units) {
       if (!cur) {
-        cur = s;
-      } else if ((cur + s).length <= maxLen) {
-        cur += s;
+        cur = u;
+      } else if ((cur + u).length <= maxLen) {
+        cur += u;
       } else {
         pages.push(cur);
-        cur = s;
+        cur = u;
       }
     }
     if (cur) pages.push(cur);
+
+    // 末尾が数文字（例：「！」）だけ孤立した場合は前のページと結合
+    if (pages.length > 1 && pages[pages.length - 1].length <= 6) {
+      const last = pages.pop();
+      pages[pages.length - 1] += last;
+    }
 
     return pages.map(p => (isQuote && !p.startsWith("【") ? `「${p}」` : p));
   }
@@ -451,11 +427,13 @@
   }
 
   function handleTextboxAdvance() {
+    // 文字送り中なら一瞬で全文表示
     if (state.typingTimer) {
       finishTypewriterImmediately();
       return;
     }
 
+    // 次のページがある場合
     if (state.pageIndex < state.pages.length - 1) {
       window.haruSound.playClick();
       state.pageIndex++;
@@ -463,8 +441,10 @@
       return;
     }
 
+    // 最後のページの場合の進行処理
     if (state.phase === "question") {
       if (state.pages.length > 1) {
+        // もう一度最初から読み返す
         window.haruSound.playClick();
         state.pageIndex = 0;
         showCurrentPage();
@@ -506,19 +486,9 @@
     updateLifetimeStatsUI();
   }
 
-  function startCuratedGame(count, filterTopic = "") {
+  function startCuratedGame(count) {
     state.lastModeCount = count;
-    let pool = [...window.HARU_QUESTIONS];
-
-    if (filterTopic) {
-      const matched = pool.filter(
-        q => q.category.includes(filterTopic) || q.statement.includes(filterTopic) || q.explanation.includes(filterTopic)
-      );
-      if (matched.length >= 3) {
-        pool = matched;
-      }
-    }
-
+    const pool = [...window.HARU_QUESTIONS];
     const shuffled = shuffleArray(pool).slice(0, Math.min(count, pool.length));
     beginQuizSession(shuffled);
   }
@@ -626,7 +596,7 @@
 
     window.haruSound.stopSpeak();
     state.phase = "explanation";
-    state.pages = splitIntoPages(q.explanation, 50);
+    state.pages = splitIntoPages(q.explanation, 55);
     state.pageIndex = 0;
     showCurrentPage();
   }
@@ -651,11 +621,11 @@
     let expr = "happy";
 
     if (ratio === 1) {
-      rank = "👑 Sランク：お姉ちゃん完全攻略ファクトチェッカー";
+      rank = "👑 Sランク：春野詩音 完全攻略ファクトチェッカー";
       comment = "「えーっ！？ 1問も騙せなかったなんて悔しすぎる〜！ 私のこと誰よりも知り尽くしてるじゃん…！ えへへ、さすが自慢の弟（妹）だね♪」";
       expr = "tehe";
     } else if (ratio >= 0.7) {
-      rank = "✨ Aランク：お姉ちゃん取扱説明書マスター";
+      rank = "✨ Aランク：詩音お姉ちゃん取扱説明書マスター";
       comment = "「やるじゃん！ かなり巧妙なハルシネーション混ぜたのに、ほとんど見抜かれちゃった〜！ 次はもっとハイレベルな知ったかぶりするからね！」";
       expr = "happy";
     } else if (ratio >= 0.4) {
@@ -695,9 +665,6 @@
     el.lblOpacity.textContent = `${state.uiOpacityPct}%`;
     el.chkVoice.checked = window.haruSound.voiceEnabled;
     el.chkSE.checked = window.haruSound.seEnabled;
-    el.inputGeminiKey.value = localStorage.getItem("haru_gemini_api_key") || "";
-    el.selectGeminiModel.value = localStorage.getItem("haru_gemini_model") || "gemini-2.5-flash";
-    syncSampleCardSelection();
     el.settingsModal.classList.remove("hidden");
   }
 
@@ -709,86 +676,10 @@
     window.haruSound.setVoiceEnabled(el.chkVoice.checked);
     window.haruSound.setSEEnabled(el.chkSE.checked);
 
-    const apiKey = el.inputGeminiKey.value.trim();
-    const model = el.selectGeminiModel.value;
-    localStorage.setItem("haru_gemini_api_key", apiKey);
-    localStorage.setItem("haru_gemini_model", model);
-
     updateTopBarIcons();
-    updateAIKeyBadge();
     window.haruSound.stopSpeak();
     window.haruSound.playClick();
     el.settingsModal.classList.add("hidden");
-  }
-
-  async function startAIGame() {
-    const topic = el.inputCustomTopic.value.trim() || "おまかせの面白い雑学";
-    const apiKey = (localStorage.getItem("haru_gemini_api_key") || "").trim();
-    const model = localStorage.getItem("haru_gemini_model") || "gemini-2.5-flash";
-
-    if (!apiKey) {
-      openSettingsModal();
-      return;
-    }
-
-    el.loadingTitle.textContent = `お姉ちゃんが「${topic}」の知ったかぶりを準備中…`;
-    el.loadingOverlay.classList.remove("hidden");
-
-    const prompt = `
-あなたは少しドヤ顔で知ったかぶりをする可愛いお姉ちゃん「はるしねーちゃん（春野詩音）」です。
-弟や妹に向けて、テーマ「${topic}」に関する雑学クイズを5問作成してください。
-5問のうち2〜3問は「ハルシネーション（実在しそうな人名・年号・専門用語や本当の知識に絶妙な嘘を混ぜた、もっともらしい知ったかぶり）」、残りは「嘘みたいに聞こえるけど100%本当のガチ雑学」にしてください。
-
-以下のJSON配列フォーマットのみで出力してください：
-[
-  {
-    "category": "カテゴリ名",
-    "statement": "ねえ知ってる？ 〜〜なんだよ！（お姉ちゃん口調の出題セリフ）",
-    "isHallucination": true または false,
-    "hint": "お姉ちゃん「（ツッコまれた時の動揺または自信満々な一言）」",
-    "reactionCorrect": "見破られた時（または本当と見抜かれた時）のお姉ちゃんの可愛いリアクションセリフ",
-    "reactionWrong": "騙せた時（または本当なのに疑われた時）のお姉ちゃんのドヤ顔・膨れっ面セリフ",
-    "explanation": "【ハルシネーション！】または【ホント！】から始まる客観的で詳しい真相解説",
-    "pointTag": "嘘ポイント：〇〇 / ガチ雑学：〇〇（短い要約）"
-  }
-]`;
-
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.9,
-              responseMimeType: "application/json"
-            }
-          })
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(`API Error (${res.status})`);
-      }
-
-      const data = await res.json();
-      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
-      const parsed = JSON.parse(rawText);
-
-      if (!Array.isArray(parsed) || parsed.length === 0) {
-        throw new Error("生成データの形式が不正です");
-      }
-
-      el.loadingOverlay.classList.add("hidden");
-      state.lastModeCount = parsed.length;
-      beginQuizSession(parsed);
-    } catch (err) {
-      el.loadingOverlay.classList.add("hidden");
-      alert(`AI生成に失敗しました（${err.message}）。収録問題から「${topic}」に近い問題でスタートします！`);
-      startCuratedGame(7, topic);
-    }
   }
 
   document.addEventListener("DOMContentLoaded", init);

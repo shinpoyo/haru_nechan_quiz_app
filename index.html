@@ -39,7 +39,7 @@
         <div class="hud-right">
           <button class="hud-icon-btn" id="btnToggleVoice" title="ボイス読み上げ ON/OFF" aria-label="ボイス切替">🔊</button>
           <button class="hud-icon-btn" id="btnToggleSE" title="効果音 ON/OFF" aria-label="効果音切替">🎵</button>
-          <button class="hud-icon-btn" id="btnOpenSettings" title="声の聴き比べ・透過度・AI設定" aria-label="設定を開く">⚙️</button>
+          <button class="hud-icon-btn" id="btnOpenSettings" title="ウィンドウ透過度・音量設定" aria-label="設定を開く">⚙️</button>
         </div>
       </header>
 
@@ -61,37 +61,10 @@
               <span class="btn-main-text">🎮 クイズを始める（7問勝負）</span>
               <span class="btn-sub-text">厳選雑学＆ハルシネーションから出題！</span>
             </button>
-
-            <div class="sub-mode-row">
-              <button class="secondary-btn endless-btn" id="btnStartAll">
-                <span class="btn-main-text">🔥 15問モード</span>
-              </button>
-              <button class="secondary-btn voice-sample-open-btn" id="btnOpenVoiceSamples">
-                <span class="btn-main-text">🎧 声の聴き比べ</span>
-              </button>
-            </div>
-
-            <div class="ai-custom-box">
-              <div class="ai-box-header">
-                <span class="ai-tag">✨ AIリアルタイム生成</span>
-                <span class="ai-status-text" id="aiKeyStatusBadge">APIキー未設定（設定⚙️から登録可）</span>
-              </div>
-              <div class="ai-input-row">
-                <input
-                  type="text"
-                  id="inputCustomTopic"
-                  placeholder="テーマ（例：宇宙、猫、戦国時代、寿司）"
-                  maxlength="30"
-                />
-                <button class="ai-gen-btn" id="btnStartAIGen">
-                  🤖 AI出題
-                </button>
-              </div>
-            </div>
           </div>
 
           <div class="lifetime-stats" id="lifetimeStats">
-            現在の声：<strong id="currentVoiceBadge">Aoede（いたずら少女調）</strong> ｜ 見破り率：<strong id="statAccuracy">--%</strong>
+            見破り率：<strong id="statAccuracy">--%</strong>
           </div>
         </div>
       </section>
@@ -118,7 +91,7 @@
         <div class="vn-textbox-wrap">
           <div class="vn-textbox-top-row">
             <div class="vn-nameplate">
-              <span class="vn-speaker-name">はるしねーちゃん</span>
+              <span class="vn-speaker-name">春野詩音</span>
               <span class="vn-mood-badge" id="emotionBubble">☝️ 自信満々</span>
             </div>
 
@@ -188,34 +161,6 @@
         </div>
 
         <div class="modal-body">
-          <div class="setting-group">
-            <label class="setting-label">🎙️ お姉ちゃんのボイス選択（タップで試聴＆切替）</label>
-
-            <div class="voice-sample-grid" id="voiceSampleGrid">
-              <!-- ① 一番手：Aoede（3番：いたずら少女調） -->
-              <button type="button" class="sample-card active" data-engine="gemini-tts" data-tts-model="gemini-2.5-pro-preview-tts" data-gemini-voice="Aoede" data-sample="assets/voice_samples/aoede_pitch_opt3.mp3" data-label="Aoede（いたずら少女調）">
-                <div class="sample-card-top">
-                  <span class="sample-badge badge-gemini">👑 メインボイス（全120セリフ収録済）</span>
-                  <span class="sample-play-icon">▶️ 試聴</span>
-                </div>
-                <div class="sample-name">Aoede（いたずら少女調）</div>
-                <div class="sample-desc">アニメっぽくていたずらな少女感のあるお姉ちゃんボイス（待ち時間0秒で再生）</div>
-              </button>
-
-              <!-- ② 二番手：七海 Nanami（甘め・可愛い高め調） -->
-              <button type="button" class="sample-card" data-engine="edge-neural" data-edge-voice="nanami_cute" data-sample="assets/voice_samples/edge_nanami_cute.mp3" data-label="七海（甘め）">
-                <div class="sample-card-top">
-                  <span class="sample-badge badge-edge">🥈 サブボイス（全120セリフ収録済）</span>
-                  <span class="sample-play-icon">▶️ 試聴</span>
-                </div>
-                <div class="sample-name">七海 Nanami（甘め・キュート高め調）</div>
-                <div class="sample-desc">高めで甘え上手なニューラルお姉ちゃんボイス（待ち時間0秒で再生）</div>
-              </button>
-            </div>
-          </div>
-
-          <hr class="modal-divider" />
-
           <!-- ウィンドウ＆選択肢の透過度設定 -->
           <div class="setting-group">
             <label class="setting-label">🪟 ウィンドウ・選択肢の背景透過度</label>
@@ -238,40 +183,11 @@
               <input type="checkbox" id="chkSE" checked />
             </div>
           </div>
-
-          <hr class="modal-divider" />
-
-          <div class="setting-group">
-            <label class="setting-label">🤖 Gemini APIキー設定（AI問題生成＆Gemini TTS用）</label>
-            <input
-              type="password"
-              id="inputGeminiKey"
-              class="text-input"
-              placeholder="AIzaSy...（Google Gemini API Key）"
-              autocomplete="off"
-            />
-            <div class="setting-row-inline">
-              <label for="selectGeminiModel">出題モデル:</label>
-              <select id="selectGeminiModel" class="select-input">
-                <option value="gemini-2.5-flash">gemini-2.5-flash（推奨・高速）</option>
-                <option value="gemini-2.0-flash">gemini-2.0-flash</option>
-              </select>
-            </div>
-          </div>
         </div>
 
         <div class="modal-footer">
           <button class="primary-btn save-btn" id="btnSaveSettings">この設定で保存して閉じる</button>
         </div>
-      </div>
-    </div>
-
-    <!-- AI生成中ローディングオーバーレイ -->
-    <div class="loading-overlay hidden" id="loadingOverlay">
-      <div class="loading-card">
-        <div class="spinner"></div>
-        <p class="loading-title" id="loadingTitle">お姉ちゃんが知ったかぶりを準備中…</p>
-        <p class="loading-sub">「えーっと、あれは確か1890年代のフランスで…（脳内生成中）」</p>
       </div>
     </div>
   </div>
