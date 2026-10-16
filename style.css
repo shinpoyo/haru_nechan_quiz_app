@@ -103,39 +103,43 @@ html, body {
   80% { transform: translateX(5px); }
 }
 
-/* ===== フローティング上部HUD（ノベルゲームの右上・左上アイコン風） ===== */
 .floating-hud {
   position: relative;
   z-index: 30;
-  padding: 10px 12px;
+  padding: 8px 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   pointer-events: none;
+  flex-wrap: nowrap;
 }
 
 .hud-left, .hud-right {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   pointer-events: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .home-pill {
   display: flex;
   align-items: center;
-  gap: 5px;
-  background: rgba(255, 255, 255, 0.82);
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(8px);
   border: 1.5px solid rgba(255, 110, 160, 0.45);
   border-radius: 999px;
-  padding: 5px 11px;
+  padding: 4px 9px;
   font-family: inherit;
   font-weight: 900;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   color: var(--pink-dark);
   cursor: pointer;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .stat-pill {
@@ -143,11 +147,13 @@ html, body {
   backdrop-filter: blur(8px);
   color: var(--pink-dark);
   font-weight: 800;
-  font-size: 0.76rem;
-  padding: 5px 10px;
+  font-size: 0.74rem;
+  padding: 4px 8px;
   border-radius: 999px;
   border: 1.5px solid rgba(255, 92, 147, 0.35);
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .combo-pill {
@@ -155,6 +161,8 @@ html, body {
   color: #fff;
   border: none;
   animation: pulseBounce 0.4s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .hud-icon-btn {
@@ -271,76 +279,88 @@ html, body {
 /* ネームプレート行（テキストボックス上辺にピタッと乗る） */
 .vn-textbox-top-row {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 6px;
-  padding: 0 6px;
+  gap: 4px;
+  padding: 0 4px;
   margin-bottom: -2px;
   z-index: 2;
+  white-space: nowrap;
 }
 
 .vn-nameplate {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   background: linear-gradient(135deg, rgba(255, 92, 147, 0.94), rgba(255, 130, 172, 0.94));
   color: #fff;
-  padding: 4px 13px;
-  border-radius: 12px 12px 4px 4px;
+  padding: 3px 10px;
+  border-radius: 10px 10px 4px 4px;
   box-shadow: 0 2px 8px rgba(217, 56, 112, 0.28);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .vn-speaker-name {
   font-weight: 900;
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .vn-mood-badge {
   background: rgba(255, 255, 255, 0.24);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 800;
-  padding: 1px 7px;
+  padding: 1px 6px;
   border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-/* 判定バッジ（お姉ちゃんの顔を隠さず、ネームプレート横にスリム表示） */
+/* 判定バッジ（ネームプレート横にスリム表示） */
 .vn-judge-badge {
-  padding: 3px 11px;
+  padding: 2px 9px;
   border-radius: 999px;
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 900;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.16);
   animation: pulseBounce 0.35s ease;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .vn-judge-badge.stamp-correct {
   background: #ecfdf5;
   color: #047857;
-  border: 2px solid #10b981;
+  border: 1.5px solid #10b981;
 }
 
 .vn-judge-badge.stamp-wrong {
   background: #fff1f2;
   color: #be123c;
-  border: 2px solid #f43f5e;
+  border: 1.5px solid #f43f5e;
 }
 
 .vn-meta-controls {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .vn-category-pill {
   background: rgba(243, 232, 255, 0.9);
   color: #6b21a8;
   font-weight: 800;
-  font-size: 0.7rem;
-  padding: 3px 8px;
+  font-size: 0.68rem;
+  padding: 2px 7px;
   border-radius: 8px;
   border: 1px solid rgba(147, 51, 234, 0.25);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .vn-mini-btn {
@@ -348,39 +368,48 @@ html, body {
   color: var(--pink-dark);
   border: 1px solid rgba(255, 92, 147, 0.35);
   border-radius: 8px;
-  padding: 2px 7px;
-  font-size: 0.78rem;
+  padding: 2px 6px;
+  font-size: 0.75rem;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-/* メッセージウィンドウ本体（透過度 --ui-opacity 連動） */
+/* メッセージウィンドウ本体（行数に関係なくサイズ完全固定！） */
 .vn-textbox {
   position: relative;
   background: rgba(255, 250, 252, var(--ui-opacity));
   backdrop-filter: blur(8px);
   border: 2.5px solid rgba(255, 115, 162, 0.72);
   border-radius: 16px;
-  padding: 11px 15px 28px;
-  min-height: 108px;
-  max-height: 140px;
+  padding: 10px 14px 24px;
+  height: 124px; /* 完全固定！伸び縮みしない */
+  min-height: 124px;
+  max-height: 124px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   cursor: pointer;
   box-shadow: 0 8px 24px rgba(45, 14, 28, 0.22);
-  overflow: hidden;
+  overflow: hidden; /* スクロールバーは絶対に出さない */
 }
 
 .vn-point-line {
   display: inline-block;
   align-self: flex-start;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 900;
-  padding: 1px 8px;
+  line-height: 1.25;
+  padding: 1px 7px;
   border-radius: 999px;
-  margin-bottom: 3px;
+  margin-bottom: 2px;
   background: rgba(255, 228, 230, 0.92);
   color: #be123c;
+  white-space: nowrap;
+  max-width: 95%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .vn-point-line.truth-chip {
@@ -388,17 +417,18 @@ html, body {
   color: #047857;
 }
 
-/* テキストは3行程度にスッキリ収め、途中で切れないよう余裕を確保 */
+/* テキストは3行程度にスッキリ収め、スクロールバーを出さずに固定表示 */
 .vn-dialogue-text {
-  font-size: clamp(0.88rem, 2.5vw, 0.98rem);
+  font-size: clamp(0.85rem, 2.5vw, 0.93rem);
   font-weight: 700;
-  line-height: 1.55;
+  line-height: 1.48;
   color: var(--text-main);
   text-shadow: 0 1px 2px rgba(255, 255, 255, 0.85);
   word-break: auto-phrase;
   overflow-wrap: break-word;
-  overflow-y: auto;
-  max-height: 84px;
+  overflow: hidden;
+  margin: 0;
+  flex: 1;
 }
 
 .vn-textbox-footer {
@@ -829,5 +859,51 @@ html, body {
   0% { transform: scale(0.88); }
   50% { transform: scale(1.08); }
   100% { transform: scale(1); }
+}
+
+/* スマホ・狭い画面向けの微調整 */
+@media (max-width: 480px) {
+  .home-pill .logo-text {
+    display: none; /* スマホではアイコンのみにしてヘッダーの被りを防ぐ */
+  }
+  .home-pill {
+    padding: 4px 8px;
+  }
+  .vn-textbox-wrap {
+    padding: 0;
+  }
+  .vn-textbox-top-row {
+    gap: 3px;
+    padding: 0 2px;
+  }
+  .vn-nameplate {
+    padding: 2px 7px;
+    gap: 4px;
+  }
+  .vn-speaker-name {
+    font-size: 0.78rem;
+  }
+  .vn-mood-badge {
+    font-size: 0.62rem;
+    padding: 1px 5px;
+  }
+  .vn-judge-badge {
+    font-size: 0.68rem;
+    padding: 2px 6px;
+  }
+  .vn-category-pill {
+    font-size: 0.62rem;
+    padding: 2px 5px;
+  }
+  .vn-textbox {
+    height: 124px;
+    min-height: 124px;
+    max-height: 124px;
+    padding: 9px 12px 22px;
+  }
+  .vn-dialogue-text {
+    font-size: 0.86rem;
+    line-height: 1.45;
+  }
 }
 

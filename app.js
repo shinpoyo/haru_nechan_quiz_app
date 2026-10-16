@@ -202,13 +202,14 @@
     }
   }
 
-  // 括弧（『』「」（））の入れ子を考慮した文末記号による文分割
+  // 括弧（『』「」（）【】）の入れ子を考慮した文末記号による文分割
   function splitSentencesRespectingQuotes(text) {
     const result = [];
     let cur = "";
     let inDouble = 0; // 『』
     let inSingle = 0; // 「」
     let inParen = 0;  // （）
+    let inCorner = 0; // 【】
 
     for (let i = 0; i < text.length; i++) {
       const ch = text[i];
@@ -219,10 +220,12 @@
       else if (ch === "」") inSingle = Math.max(0, inSingle - 1);
       else if (ch === "（" || ch === "(") inParen++;
       else if (ch === "）" || ch === ")") inParen = Math.max(0, inParen - 1);
+      else if (ch === "【") inCorner++;
+      else if (ch === "】") inCorner = Math.max(0, inCorner - 1);
 
-      if (inDouble === 0 && inSingle === 0 && inParen === 0) {
+      if (inDouble === 0 && inSingle === 0 && inParen === 0 && inCorner === 0) {
         if (/[！？。]/.test(ch)) {
-          while (i + 1 < text.length && /[」』）〜…\s！？。]/.test(text[i + 1])) {
+          while (i + 1 < text.length && /[」』）】〜…\s！？。]/.test(text[i + 1])) {
             cur += text[++i];
           }
           result.push(cur.trim());
@@ -235,12 +238,13 @@
   }
 
   // 1文が maxLen を超える場合、意味の区切れ（接続助詞・読点）で安全に句分割
-  function splitLongSentenceByClauses(sentence, maxLen = 70) {
+  function splitLongSentenceByClauses(sentence, maxLen = 60) {
     if (sentence.length <= maxLen) return [sentence];
 
     let inDouble = 0;
     let inSingle = 0;
     let inParen = 0;
+    let inCorner = 0;
     const breakPoints = [];
 
     for (let i = 0; i < sentence.length; i++) {
@@ -251,15 +255,17 @@
       else if (ch === "」") inSingle = Math.max(0, inSingle - 1);
       else if (ch === "（" || ch === "(") inParen++;
       else if (ch === "）" || ch === ")") inParen = Math.max(0, inParen - 1);
+      else if (ch === "【") inCorner++;
+      else if (ch === "】") inCorner = Math.max(0, inCorner - 1);
 
-      if (inDouble === 0 && inSingle === 0 && inParen === 0) {
+      if (inDouble === 0 && inSingle === 0 && inParen === 0 && inCorner === 0) {
         if (ch === "、") {
           const prev10 = sentence.slice(Math.max(0, i - 8), i + 1);
           let weight = 10;
           if (/(から|けど|けれど|ので|のに|だが|が|ため|であり|ものの|たり|して)、$/.test(prev10)) {
             weight = 30;
           }
-          if (/[』」）]、$/.test(sentence.slice(Math.max(0, i - 2), i + 1))) {
+          if (/[』」）】]、$/.test(sentence.slice(Math.max(0, i - 2), i + 1))) {
             weight = 40;
           }
           breakPoints.push({ index: i + 1, weight });
@@ -288,7 +294,7 @@
         break;
       }
 
-      const validPoints = breakPoints.filter(bp => bp.index >= start + 25 && bp.index <= start + maxLen);
+      const validPoints = breakPoints.filter(bp => bp.index >= start + 20 && bp.index <= start + maxLen);
 
       if (validPoints.length > 0) {
         validPoints.sort((a, b) => (b.weight - a.weight) || (b.index - a.index));
@@ -297,7 +303,7 @@
         start = chosen;
       } else {
         const fallbackPoints = breakPoints.filter(bp => bp.index > start);
-        if (fallbackPoints.length > 0 && fallbackPoints[0].index <= start + maxLen + 12) {
+        if (fallbackPoints.length > 0 && fallbackPoints[0].index <= start + maxLen + 10) {
           const chosen = fallbackPoints[0].index;
           chunks.push(sentence.slice(start, chosen));
           start = chosen;
@@ -313,7 +319,7 @@
   }
 
   // 意味の区切れ（文単位・接続句単位）を保ち、スマホ3行に余裕を持って収まるよう自然にページ分割
-  function splitIntoPages(text, maxLen = 70) {
+  function splitIntoPages(text, maxLen = 60) {
     let cleaned = text.trim();
     const isQuote = cleaned.startsWith("「") || !cleaned.startsWith("【");
     cleaned = cleaned.replace(/^「|」$/g, "").trim();
@@ -344,7 +350,7 @@
     if (cur) pages.push(cur);
 
     // 末尾が数文字（例：「！」）だけ孤立した場合は前のページと結合
-    if (pages.length > 1 && pages[pages.length - 1].length <= 6) {
+    if (pages.length > 1 && pages[pages.length - 1].length <= 8) {
       const last = pages.pop();
       pages[pages.length - 1] += last;
     }
@@ -596,7 +602,10 @@
 
     window.haruSound.stopSpeak();
     state.phase = "explanation";
-    state.pages = splitIntoPages(q.explanation, 55);
+
+    // 冒頭の【ハルシネーション！】や【ホント！】はpointChipと重複するので本文からはカットしてスッキリ解説
+    const cleanExplanation = q.explanation.replace(/^【.*?】\s*/, "");
+    state.pages = splitIntoPages(cleanExplanation, 55);
     state.pageIndex = 0;
     showCurrentPage();
   }
