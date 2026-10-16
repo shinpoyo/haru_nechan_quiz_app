@@ -564,8 +564,8 @@
     if (el.phoneVerdictBadge) {
       el.phoneVerdictBadge.className = "phone-verdict-badge " + (q.isHallucination ? "verdict-lie" : "verdict-truth");
       el.phoneVerdictBadge.textContent = q.isHallucination
-        ? "🚨 調査結果：お姉ちゃんの話は【嘘（勘違い）】"
-        : "✨ 調査結果：お姉ちゃんの話は【ホント】";
+        ? "🚨 調査結果：ねーちゃんの話は【嘘（勘違い）】"
+        : "✨ 調査結果：ねーちゃんの話は【ホント】";
     }
 
     el.pointChip.textContent = q.pointTag || (q.isHallucination ? "嘘ポイント" : "ガチ雑学");
@@ -627,16 +627,16 @@
       comment = "えーっ！？ いつもスマホでこっそり調べてたの！？ 私のうろ覚え雑学が全部バレてたなんて恥ずかしすぎる〜！ でもさすが自慢の弟（妹）だね♪";
       expr = "tehe";
     } else if (ratio >= 0.7) {
-      rank = "✨ Aランク：詩音お姉ちゃん取扱説明書マスター";
+      rank = "✨ Aランク：詩音ねーちゃん取扱説明書マスター";
       comment = "むむっ、私の自信満々な雑学トーク、かなり見抜かれちゃった〜！ たまに勘違いしちゃうけど、次はもっとちゃんとした雑学教えてあげるからね♪";
       expr = "happy";
     } else if (ratio >= 0.4) {
       rank = "🐣 Bランク：素直で可愛い信じ屋さん";
-      comment = "えへへ〜、お姉ちゃんの適当な思い込みトークも半分くらい一緒に信じてくれたね♪ 素直で可愛いからもっとお話ししちゃおーっと！";
+      comment = "えへへ〜、ねーちゃんの思い込みトークも一緒に信じてくれたね♪ 素直で可愛いからもっとお話ししちゃおーっと！";
       expr = "doya";
     } else {
-      rank = "🍮 Cランク：お姉ちゃんと一緒におバカさん同盟♪";
-      comment = "わーい！ お姉ちゃんのうろ覚え雑学を全部信じてくれるなんて、世界一ピュアで可愛い〜！ これからも一緒にいっぱい雑学トークしようね♪";
+      rank = "🍮 Cランク：ねーちゃん信者（純度100%）";
+      comment = "わーい！ ねーちゃんのうろ覚え雑学を信じてくれるなんて、世界一ピュアで可愛い〜！ これからも一緒にいっぱい雑学トークしようね♪";
       expr = "doya";
     }
 

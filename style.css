@@ -591,7 +591,9 @@ html, body {
   background: var(--pink-soft);
   color: var(--pink-dark);
   font-weight: 800;
-  font-size: 0.74rem;
+  font-size: clamp(0.68rem, 3.2vw, 0.78rem);
+  white-space: nowrap;
+  max-width: 100%;
   padding: 3px 11px;
   border-radius: 999px;
   margin-bottom: 4px;
