@@ -266,6 +266,112 @@ html, body {
   padding: 7px 14px;
 }
 
+/* ===== 回答直後に同時表示される「📱スマホ検索（ファクトチェック結果）」カード ===== */
+.phone-result-card {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto 8px;
+  background: rgba(248, 250, 252, 0.94);
+  backdrop-filter: blur(10px);
+  border: 2.5px solid #334155;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 26px rgba(15, 23, 42, 0.28);
+  animation: choicePopUp 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
+  cursor: pointer;
+}
+
+.phone-topbar {
+  background: linear-gradient(90deg, #1e293b, #334155);
+  color: #f8fafc;
+  padding: 5px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.phone-title {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #e2e8f0;
+  white-space: nowrap;
+}
+
+.phone-judge-pill {
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 900;
+  white-space: nowrap;
+  animation: pulseBounce 0.35s ease;
+}
+
+.phone-judge-pill.stamp-correct {
+  background: #10b981;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+
+.phone-judge-pill.stamp-wrong {
+  background: #f43f5e;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(244, 63, 94, 0.4);
+}
+
+.phone-body {
+  padding: 9px 13px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.phone-verdict-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.phone-verdict-badge {
+  font-size: 0.74rem;
+  font-weight: 900;
+  padding: 2px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.phone-verdict-badge.verdict-lie {
+  background: #ffe4e6;
+  color: #be123c;
+  border: 1px solid #fda4af;
+}
+
+.phone-verdict-badge.verdict-truth {
+  background: #d1fae5;
+  color: #047857;
+  border: 1px solid #6ee7b7;
+}
+
+.phone-point-tag {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #475569;
+  background: #e2e8f0;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.phone-explanation-text {
+  font-size: clamp(0.78rem, 2.2vw, 0.85rem);
+  font-weight: 700;
+  line-height: 1.45;
+  color: #1e293b;
+  margin: 0;
+}
+
 /* 下部テキストウィンドウ外枠 */
 .vn-textbox-wrap {
   pointer-events: auto;

@@ -54,6 +54,10 @@
     btnChooseTruth: document.getElementById("btnChooseTruth"),
     btnTsukkomi: document.getElementById("btnTsukkomi"),
 
+    phoneResultCard: document.getElementById("phoneResultCard"),
+    phoneVerdictBadge: document.getElementById("phoneVerdictBadge"),
+    phoneExplanationText: document.getElementById("phoneExplanationText"),
+
     resultRankTitle: document.getElementById("resultRankTitle"),
     resultSisterComment: document.getElementById("resultSisterComment"),
     resultScoreValue: document.getElementById("resultScoreValue"),
@@ -137,11 +141,18 @@
       handleTextboxAdvance();
     });
 
+    if (el.phoneResultCard) {
+      el.phoneResultCard.addEventListener("click", (e) => {
+        e.stopPropagation();
+        handleTextboxAdvance();
+      });
+    }
+
     el.btnReplayVoice.addEventListener("click", (e) => {
       e.stopPropagation();
       window.haruSound.setVoiceEnabled(true);
       updateTopBarIcons();
-      window.haruSound.speak(state.fullCurrentText, state.currentMood);
+      window.haruSound.speak(state.fullCurrentText, state.currentMood, state.currentPregenKey || "");
     });
 
     el.btnChooseHallucination.addEventListener("click", () => submitAnswer(true));
@@ -361,6 +372,7 @@
 
   function startPagedDialogue(fullText, mood, phase, pregenKey = "") {
     state.phase = phase;
+    state.currentPregenKey = pregenKey;
     state.pages = splitIntoPages(fullText);
     state.pageIndex = 0;
 
@@ -423,10 +435,7 @@
     } else if (state.phase === "question") {
       el.pageHintText.textContent = `${pageBadge}上の選択肢から回答`;
       el.btnNextAction.textContent = totalPages > 1 ? "↺" : "▲";
-    } else if (state.phase === "reaction") {
-      el.pageHintText.textContent = "タップで真相解説へ";
-      el.btnNextAction.textContent = "解説 ▶";
-    } else if (state.phase === "explanation") {
+    } else {
       const isLastQ = state.currentIndex + 1 >= state.deck.length;
       el.pageHintText.textContent = isLastQ ? "タップで結果発表へ" : "タップで次の話へ";
       el.btnNextAction.textContent = isLastQ ? "結果 ▶" : "次へ ▶";
@@ -458,10 +467,7 @@
       } else {
         el.choiceContainer.classList.toggle("hidden");
       }
-    } else if (state.phase === "reaction") {
-      window.haruSound.playClick();
-      showExplanationInTextbox();
-    } else if (state.phase === "explanation") {
+    } else {
       window.haruSound.playClick();
       state.currentIndex++;
       if (state.currentIndex >= state.deck.length) {
@@ -484,7 +490,7 @@
   function showTitleScreen() {
     window.haruSound.stopSpeak();
     setSisterExpression("normal");
-    el.judgeStamp.classList.add("hidden");
+    if (el.phoneResultCard) el.phoneResultCard.classList.add("hidden");
     el.titleScreen.classList.remove("hidden");
     el.quizScreen.classList.add("hidden");
     el.resultScreen.classList.add("hidden");
@@ -523,8 +529,9 @@
     el.progressPill.textContent = `Q.${state.currentIndex + 1}/${state.deck.length}`;
     el.categoryTag.textContent = q.category;
 
-    el.judgeStamp.classList.add("hidden");
-    el.pointChip.classList.add("hidden");
+    if (el.phoneResultCard) {
+      el.phoneResultCard.classList.add("hidden");
+    }
 
     setSisterExpression("normal");
     startPagedDialogue(q.statement, "normal", "question", q.id ? `${q.id}_q` : "");
@@ -565,13 +572,29 @@
       el.comboPill.classList.add("hidden");
     }
 
-    el.judgeStamp.className = "vn-judge-badge " + (isCorrect ? "stamp-correct" : "stamp-wrong");
-    if (isCorrect) {
-      el.judgeStamp.textContent = q.isHallucination ? "🎯 ハルシネ見破り！" : "✨ ガチ雑学正解！";
-    } else {
-      el.judgeStamp.textContent = q.isHallucination ? "😈 騙された〜！" : "💦 ホントでした！";
+    // 1. こっそりスマホ検索ウィンドウ（機械的な正誤判定＋嘘/ホント判定＋スマート解説）を上部エリアに同時表示
+    el.judgeStamp.className = "phone-judge-pill " + (isCorrect ? "stamp-correct" : "stamp-wrong");
+    el.judgeStamp.textContent = isCorrect ? "⭕ 正解！" : "❌ 不正解…";
+
+    if (el.phoneVerdictBadge) {
+      el.phoneVerdictBadge.className = "phone-verdict-badge " + (q.isHallucination ? "verdict-lie" : "verdict-truth");
+      el.phoneVerdictBadge.textContent = q.isHallucination
+        ? "🚨 調査結果：お姉ちゃんの話は【嘘（勘違い）】"
+        : "✨ 調査結果：お姉ちゃんの話は【ホント】";
     }
 
+    el.pointChip.textContent = q.pointTag || (q.isHallucination ? "嘘ポイント" : "ガチ雑学");
+    el.pointChip.className = "phone-point-tag " + (q.isHallucination ? "" : "truth-chip");
+
+    const cleanExplanation = q.explanation.replace(/^【.*?】\s*/, "");
+    if (el.phoneExplanationText) {
+      el.phoneExplanationText.textContent = cleanExplanation;
+    }
+    if (el.phoneResultCard) {
+      el.phoneResultCard.classList.remove("hidden");
+    }
+
+    // 2. 下部の固定テキストボックスには春野詩音（おバカで可愛いお姉ちゃん）のリアクションを同時表示＆ボイス再生
     setSisterExpression(nextExpr, animClass);
 
     const reactionLine = isCorrect ? q.reactionCorrect : q.reactionWrong;
@@ -595,26 +618,10 @@
     }
   }
 
-  function showExplanationInTextbox() {
-    const q = state.deck[state.currentIndex];
-    el.pointChip.textContent = q.pointTag || (q.isHallucination ? "嘘ポイント" : "ガチ雑学");
-    el.pointChip.className = "vn-point-line " + (q.isHallucination ? "" : "truth-chip");
-    el.pointChip.classList.remove("hidden");
-
-    window.haruSound.stopSpeak();
-    state.phase = "explanation";
-
-    // 冒頭の【ハルシネーション！】や【ホント！】はpointChipと重複するので本文からはカットしてスッキリ解説
-    const cleanExplanation = q.explanation.replace(/^【.*?】\s*/, "");
-    state.pages = splitIntoPages(cleanExplanation, 55);
-    state.pageIndex = 0;
-    showCurrentPage();
-  }
-
   function showResultScreen() {
     window.haruSound.playFanfare();
     el.quizScreen.classList.add("hidden");
-    el.judgeStamp.classList.add("hidden");
+    if (el.phoneResultCard) el.phoneResultCard.classList.add("hidden");
     el.resultScreen.classList.remove("hidden");
 
     const total = state.deck.length;
@@ -632,19 +639,19 @@
 
     if (ratio === 1) {
       rank = "👑 Sランク：春野詩音 完全攻略ファクトチェッカー";
-      comment = "えーっ！？ 1問も騙せなかったなんて悔しすぎる〜！ 私のこと誰よりも知り尽くしてるじゃん…！ えへへ、さすが自慢の弟（妹）だね♪";
+      comment = "えーっ！？ いつもスマホでこっそり調べてたの！？ 私のうろ覚え雑学が全部バレてたなんて恥ずかしすぎる〜！ でもさすが自慢の弟（妹）だね♪";
       expr = "tehe";
     } else if (ratio >= 0.7) {
       rank = "✨ Aランク：詩音お姉ちゃん取扱説明書マスター";
-      comment = "やるじゃん！ かなり巧妙なハルシネーション混ぜたのに、ほとんど見抜かれちゃった〜！ 次はもっとハイレベルな知ったかぶりするからね！";
+      comment = "むむっ、私の自信満々な雑学トーク、かなり見抜かれちゃった〜！ たまに勘違いしちゃうけど、次はもっとちゃんとした雑学教えてあげるからね♪";
       expr = "happy";
     } else if (ratio >= 0.4) {
       rank = "🐣 Bランク：素直で可愛い信じ屋さん";
-      comment = "ふっふっふ〜、お姉ちゃんのドヤ顔トークに半分くらいコロッと引っかかってたね♪ でも素直で可愛いから許してあげる！";
+      comment = "えへへ〜、お姉ちゃんの適当な思い込みトークも半分くらい一緒に信じてくれたね♪ 素直で可愛いからもっとお話ししちゃおーっと！";
       expr = "doya";
     } else {
-      rank = "🍮 Cランク：お姉ちゃんのカモ（純粋培養100%）";
-      comment = "あははは！ お姉ちゃんのハルシネーションを全部信じてくれるなんて、世界一ピュアで可愛い弟（妹）だな〜！ これからもいっぱい雑学教えてあげるね♪";
+      rank = "🍮 Cランク：お姉ちゃんと一緒におバカさん同盟♪";
+      comment = "わーい！ お姉ちゃんのうろ覚え雑学を全部信じてくれるなんて、世界一ピュアで可愛い〜！ これからも一緒にいっぱい雑学トークしようね♪";
       expr = "doya";
     }
 

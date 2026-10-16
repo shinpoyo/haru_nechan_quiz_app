@@ -46,20 +46,20 @@
       <!-- ===== 1. タイトル画面オーバーレイ ===== -->
       <section class="overlay-screen title-screen" id="titleScreen">
         <div class="title-card">
-          <div class="title-catch">＼ ドヤ顔お姉ちゃんの知ったかぶりクイズ ／</div>
+          <div class="title-catch">＼ ちょっとおバカなお姉ちゃんの知ったかぶり見破りゲーム ／</div>
           <h1 class="main-title">
             <span class="pink">はるし</span>ねーちゃん
           </h1>
           <p class="title-desc">
-            お姉ちゃん（春野 詩音）は博識ぶるのが大好き！<br>
-            でも半分は<strong>AI顔負けの「ハルシネーション（もっともらしい嘘）」</strong>！？<br>
-            お姉ちゃんの話が<strong>「嘘」</strong>か<strong>「ホント」</strong>か見破ろう！
+            お姉ちゃん（春野 詩音）はドヤ顔で雑学を語るのが大好き！<br>
+            でも実はうろ覚え＆思い込みの<strong>「ハルシネーション（もっともらしい嘘）」</strong>が半分混ざってる！？<br>
+            スマホでこっそり裏取りして、お姉ちゃんの話が<strong>「嘘」</strong>か<strong>「ホント」</strong>か見破ろう！
           </p>
 
           <div class="mode-buttons">
             <button class="primary-btn start-btn" id="btnStartStandard">
-              <span class="btn-main-text">🎮 クイズを始める（7問勝負）</span>
-              <span class="btn-sub-text">厳選雑学＆ハルシネーションから出題！</span>
+              <span class="btn-main-text">🎮 ゲームを始める（7問勝負）</span>
+              <span class="btn-sub-text">お姉ちゃんの雑学トークをスマホでファクトチェック！</span>
             </button>
           </div>
 
@@ -69,12 +69,13 @@
         </div>
       </section>
 
-      <!-- ===== 2. ギャルゲー/ノベル風プレイ画面（下部3行ウィンドウ＋上部ポップアップ選択肢） ===== -->
+      <!-- ===== 2. ギャルゲー/ノベル風プレイ画面（上部：選択肢 / スマホ検索結果 ＋ 下部：春野詩音セリフ枠） ===== -->
       <section class="vn-play-layer hidden" id="quizScreen">
+        <!-- 回答前の選択肢 -->
         <div class="floating-choices hidden" id="choiceContainer">
           <button class="vn-choice-bar hallu-choice" id="btnChooseHallucination">
             <span class="choice-icon">🚨</span>
-            <span class="choice-main">ハルシネーション！（知ったかぶりの嘘）</span>
+            <span class="choice-main">嘘でしょ！（うろ覚え・ハルシネーション）</span>
           </button>
 
           <button class="vn-choice-bar truth-choice" id="btnChooseTruth">
@@ -84,18 +85,32 @@
 
           <button class="vn-choice-bar tsukkomi-choice" id="btnTsukkomi">
             <span class="choice-icon">🤔</span>
-            <span class="choice-main">お姉ちゃんにツッコむ（揺さぶりヒント）</span>
+            <span class="choice-main">お姉ちゃんにツッコむ（揺さぶってみる）</span>
           </button>
         </div>
 
+        <!-- 回答直後に機械的に同時表示される「📱スマホ検索（ファクトチェック結果）」ウィンドウ -->
+        <div class="phone-result-card hidden" id="phoneResultCard">
+          <div class="phone-topbar">
+            <span class="phone-title">📱 こっそりスマホ検索</span>
+            <span class="phone-judge-pill stamp-correct" id="judgeStamp">⭕ 正解！</span>
+          </div>
+          <div class="phone-body">
+            <div class="phone-verdict-row">
+              <span class="phone-verdict-badge" id="phoneVerdictBadge">🚨 調査結果：お姉ちゃんの話は【嘘】</span>
+              <span class="phone-point-tag" id="pointChip">嘘ポイント</span>
+            </div>
+            <p class="phone-explanation-text" id="phoneExplanationText"></p>
+          </div>
+        </div>
+
+        <!-- 下部：春野詩音 専用セリフウィンドウ（高さ完全固定） -->
         <div class="vn-textbox-wrap">
           <div class="vn-textbox-top-row">
             <div class="vn-nameplate">
               <span class="vn-speaker-name">春野詩音</span>
               <span class="vn-mood-badge" id="emotionBubble">☝️ 自信満々</span>
             </div>
-
-            <div class="vn-judge-badge hidden" id="judgeStamp">🎯 見破り成功！</div>
 
             <div class="vn-meta-controls">
               <span class="vn-category-pill" id="categoryTag">雑学</span>
@@ -104,7 +119,6 @@
           </div>
 
           <div class="vn-textbox" id="dialogueBody">
-            <div class="vn-point-line hidden" id="pointChip"></div>
             <p class="vn-dialogue-text" id="dialogueText"></p>
 
             <div class="vn-textbox-footer">

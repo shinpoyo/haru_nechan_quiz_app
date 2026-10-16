@@ -1,10 +1,10 @@
-import asyncio
 import base64
 import json
 import os
 import re
 import struct
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import requests
@@ -56,7 +56,71 @@ def pcm_to_wav_opt3(pcm_bytes: bytes, target_rate: int = 25000) -> bytes:
     return header + pcm_bytes
 
 
-def generate_aoede_opt3_all(questions):
+def get_reaction_style(is_hallu: bool, suffix: str) -> str:
+    if is_hallu and suffix == "c":
+        return "【キャラクター設定】見た目10代後半の愛嬌満点でおバカ可愛いアニメの美少女お姉ちゃん。うろ覚えや知ったかぶりがスマホ検索でバレてしまい、顔を赤くして恥ずかしそうに照れたり『えっ違ったの！？』と可愛く焦ったりするアニメ少女口調で話してください"
+    elif is_hallu and suffix == "w":
+        return "【キャラクター設定】見た目10代後半の愛嬌満点でおバカ可愛いアニメの美少女お姉ちゃん。最初は得意げにいたずらっぽく笑いつつ、スマホで検索されて『あっ調べないで、恥ずかしい〜！』と可愛く焦るアニメ少女口調で話してください"
+    elif not is_hallu and suffix == "c":
+        return "【キャラクター設定】見た目10代後半の愛嬌満点でおバカ可愛いアニメの美少女お姉ちゃん。自分の雑学がスマホ検索でも本当だと証明されて、『ほらね〜！お姉ちゃんの言った通りでしょ！』と満面の笑顔で得意げに喜ぶ可愛いアニメ少女口調で話してください"
+    else:
+        return "【キャラクター設定】見た目10代後半の愛嬌満点でおバカ可愛いアニメの美少女お姉ちゃん。せっかく本当のことを教えてあげたのに疑われて、『むーっ！ほらスマホ見てよ、本当だったでしょ！』とほっぺを膨らませて可愛く拗ねるアニメ少女口調で話してください"
+
+
+def generate_single_reaction(task, api_key: str, out_dir: Path):
+    idx, total, qid, is_hallu, suffix, raw_text = task
+    out_file = out_dir / f"{qid}_{suffix}.mp3"
+    text = clean_text(raw_text)
+
+    payload = {
+        "contents": [{"parts": [{"text": text}]}],
+        "generationConfig": {
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {
+                "voiceConfig": {
+                    "prebuiltVoiceConfig": {"voiceName": "Aoede"}
+                }
+            },
+        },
+    }
+
+    models_to_try = [
+        "gemini-3.1-flash-tts-preview",
+        "gemini-3.8-flash-tts",
+        "gemini-3.8-flash-lite-tts",
+    ]
+
+    for m_idx in range(len(models_to_try)):
+        model_name = models_to_try[(idx + m_idx) % len(models_to_try)]
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+        for attempt in range(2):
+            try:
+                resp = requests.post(url, json=payload, timeout=45)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    b64 = (
+                        data.get("candidates", [{}])[0]
+                        .get("content", {})
+                        .get("parts", [{}])[0]
+                        .get("inlineData", {})
+                        .get("data")
+                    )
+                    if b64:
+                        wav_bytes = pcm_to_wav_opt3(
+                            base64.b64decode(b64), target_rate=25000
+                        )
+                        out_file.write_bytes(wav_bytes)
+                        return f"[{idx}/{total}] Saved {out_file.name} ({len(wav_bytes)} bytes) via {model_name}"
+                elif resp.status_code == 429:
+                    time.sleep(1.5 + attempt)
+                else:
+                    time.sleep(1.0)
+            except Exception as e:
+                time.sleep(1.0)
+    return f"[{idx}/{total}] FAILED {out_file.name}"
+
+
+def generate_all_reactions(questions):
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         print("GEMINI_API_KEY is not set.")
@@ -65,95 +129,30 @@ def generate_aoede_opt3_all(questions):
     out_dir = Path("assets/voices_aoede")
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # 3番で絶賛された「見た目10代後半の愛嬌満点なアニメ美少女お姉ちゃん」演技指導
-    style_map = {
-        "q": "【キャラクター設定】見た目10代後半の愛嬌満点なアニメの美少女お姉ちゃん。声質は少女らしく弾んだ可愛いアニメ声。「ふふっ、知ってる〜？」と小悪魔っぽくいたずらな笑顔で、人差し指を立てて語尾を可愛く跳ねさせて話してください",
-        "h": "【キャラクター設定】少し動揺しつつも、可愛らしく意地を張るアニメ美少女お姉ちゃん口調で「え、目を逸らしてないよ！？」と愛嬌たっぷりに話してください",
-        "c": "【キャラクター設定】嘘がバレて「えへへ、バレちゃった〜？」と恥ずかしそうにウインクするか、満面の笑顔で弟（妹）を褒める、最高に可愛いアニメ少女お姉ちゃん口調で話してください",
-        "w": "【キャラクター設定】「ふっふっふ〜、引っかかったな〜！」と得意げにいたずら成功を喜ぶドヤ顔か、「むーっ！本当なのに〜！」とほっぺを膨らませて可愛く拗ねたアニメ少女お姉ちゃん口調で話してください",
-    }
-
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-preview-tts:generateContent?key={api_key}"
-
-    total_parts = len(questions) * 4
-    done = 0
-
+    tasks = []
+    total = len(questions) * 2
+    idx = 0
     for q in questions:
         qid = q["id"]
-        parts = [
-            ("q", q["statement"]),
-            ("h", q["hint"]),
-            ("c", q["reactionCorrect"]),
-            ("w", q["reactionWrong"]),
-        ]
-        for suffix, raw_text in parts:
-            done += 1
+        is_hallu = bool(q["isHallucination"])
+        for suffix, raw_text in [("c", q["reactionCorrect"]), ("w", q["reactionWrong"])]:
+            idx += 1
             out_file = out_dir / f"{qid}_{suffix}.mp3"
-            if out_file.exists() and out_file.stat().st_size > 1000:
-                print(f"[{done}/{total_parts}] Exists: {out_file.name}")
+            if out_file.exists() and 10000 < out_file.stat().st_size <= 650000:
                 continue
+            tasks.append((idx, total, qid, is_hallu, suffix, raw_text))
 
-            text = clean_text(raw_text)
-            prompt = f"{style_map[suffix]}：\n「{text}」"
-            payload = {
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {
-                    "responseModalities": ["AUDIO"],
-                    "speechConfig": {
-                        "voiceConfig": {
-                            "prebuiltVoiceConfig": {"voiceName": "Aoede"}
-                        }
-                    },
-                },
-            }
-
-            # まずProモデルを試し、クォータ超過(429)の場合は自動でFlashモデルで生成
-            models_to_try = [
-                "gemini-2.5-pro-preview-tts",
-                "gemini-2.5-flash-preview-tts"
-            ]
-
-            success = False
-            for model_name in models_to_try:
-                if success:
-                    break
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-                for attempt in range(3):
-                    try:
-                        resp = requests.post(url, json=payload, timeout=45)
-                        if resp.status_code == 200:
-                            data = resp.json()
-                            b64 = (
-                                data.get("candidates", [{}])[0]
-                                .get("content", {})
-                                .get("parts", [{}])[0]
-                                .get("inlineData", {})
-                                .get("data")
-                            )
-                            if b64:
-                                wav_bytes = pcm_to_wav_opt3(
-                                    base64.b64decode(b64), target_rate=25000
-                                )
-                                out_file.write_bytes(wav_bytes)
-                                print(
-                                    f"[{done}/{total_parts}] Saved {out_file.name} via {model_name} ({len(wav_bytes)} bytes)"
-                                )
-                                success = True
-                                break
-                        elif resp.status_code == 429:
-                            print(f"[{model_name}] 429 limit on {qid}_{suffix}. Trying next option...")
-                            time.sleep(3)
-                            break
-                        else:
-                            time.sleep(2)
-                    except Exception as e:
-                        time.sleep(2)
-
-            time.sleep(1.0)
+    print(f"Regenerating {len(tasks)} oversized reaction voices with pure dialogue...", flush=True)
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        futures = [
+            executor.submit(generate_single_reaction, t, api_key, out_dir)
+            for t in tasks
+        ]
+        for fut in as_completed(futures):
+            print(fut.result(), flush=True)
 
 
 if __name__ == "__main__":
     qs = parse_questions_js()
-    print(f"Starting Aoede (Option 3: Sweet Mischief Anime Sister) batch generation for {len(qs)} questions...")
-    generate_aoede_opt3_all(qs)
-    print("All done!")
+    generate_all_reactions(qs)
+    print("All reaction voices updated!")
