@@ -21,7 +21,7 @@
     currentMood: "normal",
     lastModeCount: 7,
     uiOpacityPct: parseInt(localStorage.getItem("haru_ui_opacity") || "75", 10),
-    currentVoiceLabel: localStorage.getItem("haru_voice_label") || "はるしねーちゃん公式（Aoede・全問収録済）"
+    currentVoiceLabel: localStorage.getItem("haru_voice_label") || "Aoede（いたずら少女調）"
   };
 
   const el = {
@@ -251,6 +251,13 @@
   }
 
   function syncSampleCardSelection() {
+    const validLabels = ["Aoede（いたずら少女調）", "七海（甘め）"];
+    if (!validLabels.includes(state.currentVoiceLabel)) {
+      state.currentVoiceLabel = "Aoede（いたずら少女調）";
+      window.haruSound.ttsEngine = "gemini-tts";
+      localStorage.setItem("haru_voice_label", state.currentVoiceLabel);
+      localStorage.setItem("haru_tts_engine", "gemini-tts");
+    }
     if (el.currentVoiceBadge) {
       el.currentVoiceBadge.textContent = state.currentVoiceLabel;
     }
