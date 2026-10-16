@@ -306,38 +306,67 @@
     }
   }
 
-  function splitIntoPages(text, maxLen = 54) {
-    const cleaned = text.trim();
-    if (cleaned.length <= maxLen) return [cleaned];
+  // 括弧（『』「」（））の入れ子を考慮した文分割（括弧内の！？。では切らない）
+  function splitSentencesRespectingQuotes(text) {
+    const result = [];
+    let cur = "";
+    let inDouble = 0; // 『』
+    let inSingle = 0; // 「」
+    let inParen = 0;  // （）
 
-    const tokens = cleaned.split(/(?<=[！？。…])/);
-    const pages = [];
-    let current = "";
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      cur += ch;
+      if (ch === "『") inDouble++;
+      else if (ch === "』") inDouble = Math.max(0, inDouble - 1);
+      else if (ch === "「") inSingle++;
+      else if (ch === "」") inSingle = Math.max(0, inSingle - 1);
+      else if (ch === "（" || ch === "(") inParen++;
+      else if (ch === "）" || ch === ")") inParen = Math.max(0, inParen - 1);
 
-    for (const token of tokens) {
-      if ((current + token).length <= maxLen) {
-        current += token;
-      } else {
-        if (current) pages.push(current.trim());
-        if (token.length <= maxLen) {
-          current = token;
-        } else {
-          const subTokens = token.split(/(?<=、)/);
-          let subCur = "";
-          for (const st of subTokens) {
-            if ((subCur + st).length <= maxLen) {
-              subCur += st;
-            } else {
-              if (subCur) pages.push(subCur.trim());
-              subCur = st;
-            }
+      // 括弧の外側で文末記号（！、？、。）が来た時のみ文の区切りとする
+      if (inDouble === 0 && inSingle === 0 && inParen === 0) {
+        if (/[！？。]/.test(ch)) {
+          // 直後の閉じ括弧や三点リーダー・ダッシュを巻き込む
+          while (i + 1 < text.length && /[」』）〜…\s]/.test(text[i + 1])) {
+            cur += text[++i];
           }
-          current = subCur;
+          result.push(cur.trim());
+          cur = "";
         }
       }
     }
-    if (current.trim()) pages.push(current.trim());
-    return pages.length > 0 ? pages : [cleaned];
+    if (cur.trim()) result.push(cur.trim());
+    return result;
+  }
+
+  // 意味の区切れ（文単位）を保ち、3行（約85文字）に収まるよう自然にページ分割
+  function splitIntoPages(text, maxLen = 85) {
+    let cleaned = text.trim();
+    const isQuote = cleaned.startsWith("「") || !cleaned.startsWith("【");
+    cleaned = cleaned.replace(/^「|」$/g, "").trim();
+
+    const sentences = splitSentencesRespectingQuotes(cleaned);
+    if (sentences.length <= 1) {
+      return isQuote && !cleaned.startsWith("【") ? [`「${cleaned}」`] : [cleaned];
+    }
+
+    const pages = [];
+    let cur = "";
+
+    for (const s of sentences) {
+      if (!cur) {
+        cur = s;
+      } else if ((cur + s).length <= maxLen) {
+        cur += s;
+      } else {
+        pages.push(cur);
+        cur = s;
+      }
+    }
+    if (cur) pages.push(cur);
+
+    return pages.map(p => (isQuote && !p.startsWith("【") ? `「${p}」` : p));
   }
 
   function startPagedDialogue(fullText, mood, phase, pregenKey = "") {
