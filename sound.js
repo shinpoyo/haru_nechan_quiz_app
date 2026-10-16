@@ -86,129 +86,167 @@ class HaruSoundEngine {
     if (!val) this.stopSpeak();
   }
 
-  // ===== 効果音（Web Audio API） =====
+  // ===== モダン・ノベルゲーム風 高品位サウンドエフェクト（FM倍音＋フィルタ＋残響合成） =====
+
+  // ヘルパー: 柔らかいベル/ガラス系の単音（基本波＋倍音＋ローパス＋残響ディレイ）を鳴らす
+  _playBellNote(freq, startTime, duration, vol = 0.12, brightness = 2800) {
+    if (!this.ctx) return;
+
+    const masterGain = this.ctx.createGain();
+    masterGain.gain.setValueAtTime(0.0001, startTime);
+    masterGain.gain.linearRampToValueAtTime(vol, startTime + 0.006);
+    masterGain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(brightness, startTime);
+    filter.frequency.exponentialRampToValueAtTime(Math.max(400, brightness * 0.35), startTime + duration);
+
+    // 基音 (Sine) + 2倍音 (Triangle) + 3倍音きらめき (Sine)
+    const harmonics = [
+      { ratio: 1, amp: 1.0, type: "sine", durMul: 1.0 },
+      { ratio: 2, amp: 0.32, type: "triangle", durMul: 0.65 },
+      { ratio: 3, amp: 0.12, type: "sine", durMul: 0.35 }
+    ];
+
+    harmonics.forEach(h => {
+      const osc = this.ctx.createOscillator();
+      const hGain = this.ctx.createGain();
+      osc.type = h.type;
+      osc.frequency.setValueAtTime(freq * h.ratio, startTime);
+
+      hGain.gain.setValueAtTime(h.amp, startTime);
+      hGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration * h.durMul);
+
+      osc.connect(hGain);
+      hGain.connect(filter);
+      osc.start(startTime);
+      osc.stop(startTime + duration + 0.02);
+    });
+
+    filter.connect(masterGain);
+    masterGain.connect(this.ctx.destination);
+  }
+
+  // 文字送り音（フルボイスを邪魔しない極小・上質なコトッというソフトタップ音）
   playBlip(pitchOffset = 0) {
     if (!this.seEnabled) return;
+    // ボイス再生中は声が一番綺麗に聞こえるよう文字送りピポ音を鳴らさない
+    if (this.voiceEnabled && this.currentAudio && !this.currentAudio.paused) return;
+
     this.initContext();
     if (!this.ctx) return;
 
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
+    const filter = this.ctx.createBiquadFilter();
     const gain = this.ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(640 + pitchOffset * 35, now);
-    gain.gain.setValueAtTime(0.022, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
 
-    osc.connect(gain);
+    osc.type = "sine";
+    const baseFreq = 980 + (pitchOffset % 3) * 45;
+    osc.frequency.setValueAtTime(baseFreq, now);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.6, now + 0.022);
+
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(1600, now);
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.018, now + 0.002);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.024);
+
+    osc.connect(filter);
+    filter.connect(gain);
     gain.connect(this.ctx.destination);
     osc.start(now);
-    osc.stop(now + 0.036);
+    osc.stop(now + 0.026);
   }
 
+  // ボタンタップ・ページ送り音（スマホゲーム風の澄んだガラス・マリンバ系「コロンッ」音）
   playClick() {
     if (!this.seEnabled) return;
     this.initContext();
     if (!this.ctx) return;
 
     const now = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(520, now);
-    osc.frequency.exponentialRampToValueAtTime(880, now + 0.06);
-    gain.gain.setValueAtTime(0.11, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.075);
+    // 2音の短いクリスタルプラック（E6 -> B6 の微小アルペジオ）
+    this._playBellNote(1174.66, now, 0.065, 0.075, 3400);        // D6
+    this._playBellNote(1760.00, now + 0.018, 0.085, 0.06, 4200); // A6
   }
 
+  // ツッコミ（揺さぶり）音（キュートなキラッ✨＋エレピベルの「ポロロン♪」）
   playHint() {
     if (!this.seEnabled) return;
     this.initContext();
     if (!this.ctx) return;
 
     const now = this.ctx.currentTime;
-    [587.33, 880].forEach((freq, i) => {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(freq, now + i * 0.06);
-      gain.gain.setValueAtTime(0.1, now + i * 0.06);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.12);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start(now + i * 0.06);
-      osc.stop(now + i * 0.06 + 0.13);
+    // F#maj7 系の可愛いキラキラ上昇アルペジオ
+    const notes = [739.99, 932.33, 1108.73, 1396.91, 1864.66];
+    notes.forEach((freq, i) => {
+      this._playBellNote(freq, now + i * 0.042, 0.28, 0.075, 4800);
     });
   }
 
+  // 正解チャイム（現代アニメゲーム風の華やかなクリスタルベル＋キラキラ残響）
   playCorrect() {
     if (!this.seEnabled) return;
     this.initContext();
     if (!this.ctx) return;
 
     const now = this.ctx.currentTime;
-    const notes = [659.25, 523.25, 783.99, 1046.5];
-    const times = [0, 0.12, 0.24, 0.36];
-    notes.forEach((freq, idx) => {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(freq, now + times[idx]);
-      gain.gain.setValueAtTime(0.16, now + times[idx]);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + times[idx] + 0.25);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start(now + times[idx]);
-      osc.stop(now + times[idx] + 0.26);
+    // メインのクリスタルチャイム (A5 -> E6 -> A6 + 和音)
+    this._playBellNote(880.00, now, 0.28, 0.12, 4500);          // A5
+    this._playBellNote(1108.73, now + 0.09, 0.32, 0.11, 4800);  // C#6
+    this._playBellNote(1318.51, now + 0.18, 0.55, 0.13, 5200);  // E6
+    this._playBellNote(1760.00, now + 0.18, 0.65, 0.11, 6000);  // A6
+
+    // 後ろで鳴るキラキラ粒子 (高域の微細なアルペジオ)
+    const sparkles = [2217.46, 2637.02, 3520.00];
+    sparkles.forEach((f, idx) => {
+      this._playBellNote(f, now + 0.24 + idx * 0.055, 0.35, 0.04, 7000);
     });
   }
 
+  // 不正解・騙された音（耳障りなブザーを廃止し、可愛いいたずら風の柔らかい「ポワワ〜ン」マリンバ音）
   playWrong() {
     if (!this.seEnabled) return;
     this.initContext();
     if (!this.ctx) return;
 
     const now = this.ctx.currentTime;
-    [240, 195].forEach((freq, idx) => {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(freq, now + idx * 0.18);
-      gain.gain.setValueAtTime(0.1, now + idx * 0.18);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.18 + 0.22);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start(now + idx * 0.18);
-      osc.stop(now + idx * 0.18 + 0.24);
+    // 柔らかいローパスを通したコミカルな下降2音（E4+Bb4 -> Eb4+A4）
+    const pairs = [
+      { f1: 329.63, f2: 466.16, t: 0, dur: 0.16 },
+      { f1: 293.66, f2: 415.30, t: 0.15, dur: 0.36 }
+    ];
+
+    pairs.forEach(p => {
+      this._playBellNote(p.f1, now + p.t, p.dur, 0.11, 1200);
+      this._playBellNote(p.f2, now + p.t, p.dur, 0.08, 1400);
     });
   }
 
+  // 結果発表ファンファーレ（透明感のあるノベルゲーム風クリアジングル＋キラキラコード）
   playFanfare() {
     if (!this.seEnabled) return;
     this.initContext();
     if (!this.ctx) return;
 
     const now = this.ctx.currentTime;
-    const notes = [523.25, 659.25, 783.99, 1046.5];
-    notes.forEach((freq, idx) => {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = "triangle";
-      const start = now + idx * 0.11;
-      const dur = idx === notes.length - 1 ? 0.5 : 0.16;
-      osc.frequency.setValueAtTime(freq, start);
-      gain.gain.setValueAtTime(0.15, start);
-      gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start(start);
-      osc.stop(start + dur + 0.02);
-    });
+    // 華やかな上昇メロディ (D5 -> F#5 -> A5 -> C#6 -> D6)
+    const melody = [
+      { f: 587.33, t: 0.00, d: 0.22, v: 0.10 },
+      { f: 739.99, t: 0.09, d: 0.22, v: 0.10 },
+      { f: 880.00, t: 0.18, d: 0.25, v: 0.11 },
+      { f: 1108.73, t: 0.27, d: 0.30, v: 0.11 },
+      { f: 1174.66, t: 0.38, d: 0.85, v: 0.14 }
+    ];
+    melody.forEach(m => this._playBellNote(m.f, now + m.t, m.d, m.v, 5200));
+
+    // 最終コードの厚み (F#5 + A5 +F#6)
+    this._playBellNote(739.99, now + 0.38, 0.85, 0.08, 3600);
+    this._playBellNote(1479.98, now + 0.44, 0.75, 0.07, 6000);
+    this._playBellNote(2349.32, now + 0.50, 0.65, 0.045, 7500);
   }
 
   cleanTextForSpeech(text) {
