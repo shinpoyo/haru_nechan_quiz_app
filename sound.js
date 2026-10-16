@@ -447,7 +447,7 @@ class HaruSoundEngine {
     return false;
   }
 
-  pcmBase64ToWavBlob(base64Pcm, sampleRate = 24000) {
+  pcmBase64ToWavBlob(base64Pcm, sampleRate = 25000) {
     const binaryStr = atob(base64Pcm);
     const pcmLen = binaryStr.length;
     const wavBuffer = new ArrayBuffer(44 + pcmLen);

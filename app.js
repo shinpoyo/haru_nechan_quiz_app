@@ -21,7 +21,7 @@
     currentMood: "normal",
     lastModeCount: 7,
     uiOpacityPct: parseInt(localStorage.getItem("haru_ui_opacity") || "75", 10),
-    currentVoiceLabel: localStorage.getItem("haru_voice_label") || "VOICEVOX（春日部つむぎ）"
+    currentVoiceLabel: localStorage.getItem("haru_voice_label") || "はるしねーちゃん公式（Aoede・全問収録済）"
   };
 
   const el = {
