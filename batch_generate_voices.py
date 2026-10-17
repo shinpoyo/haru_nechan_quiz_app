@@ -56,14 +56,22 @@ def clean_text(text: str) -> str:
     text = re.sub(r"[✨🎵♪🐙🪐🍌🎓🦋🦦💎🥩🍓🐦💨🎯😈💦🚨👑🐣🍮]", "", text)
     return text.strip()
 
-def generate_one_voice(key: str, raw_text: str, idx: int, total: int, model: str = "gemini-3.1-flash-tts-preview"):
+def generate_one_voice(key: str, raw_text: str, idx: int, total: int):
     out_file = OUT_DIR / f"{key}.mp3"
+    if out_file.exists() and out_file.stat().st_size > 10000:
+        print(f"[{idx}/{total}] SKIP (already exists) {key}.mp3", flush=True)
+        return True
+
     text = clean_text(raw_text)
+    # 純粋なセリフテキストのみを送信（メタ指示文を絶対に含めない）
+    prompt = text
     
-    # 統一感を出すための共通演技ディレクション
-    prompt = f"明るく愛嬌たっぷりな可愛いアニメ少女（春野詩音）の声で、以下のセリフを自然に読んでください:\n「{text}」"
+    models = [
+        "gemini-3.8-flash-lite-tts",
+        "gemini-3.8-flash-tts",
+        "gemini-3.1-flash-tts-preview"
+    ]
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
@@ -76,30 +84,36 @@ def generate_one_voice(key: str, raw_text: str, idx: int, total: int, model: str
         },
     }
     
-    for attempt in range(4):
-        try:
-            resp = requests.post(url, json=payload, timeout=45)
-            if resp.status_code == 200:
-                data = resp.json()
-                b64 = (
-                    data.get("candidates", [{}])[0]
-                    .get("content", {})
-                    .get("parts", [{}])[0]
-                    .get("inlineData", {})
-                    .get("data")
-                )
-                if b64:
-                    wav_bytes = pcm_to_wav_opt3(base64.b64decode(b64), target_rate=25000)
-                    out_file.write_bytes(wav_bytes)
-                    print(f"[{idx}/{total}] SUCCESS {key}.mp3 ({len(wav_bytes)} bytes)", flush=True)
-                    return True
-            elif resp.status_code == 429:
-                wait_sec = 2.0 * (attempt + 1)
-                time.sleep(wait_sec)
-            else:
-                time.sleep(1.0)
-        except Exception:
-            time.sleep(1.5)
+    for model in models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={API_KEY}"
+        for attempt in range(2):
+            try:
+                resp = requests.post(url, json=payload, timeout=45)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    b64 = (
+                        data.get("candidates", [{}])[0]
+                        .get("content", {})
+                        .get("parts", [{}])[0]
+                        .get("inlineData", {})
+                        .get("data")
+                    )
+                    if b64:
+                        wav_bytes = pcm_to_wav_opt3(base64.b64decode(b64), target_rate=25000)
+                        out_file.write_bytes(wav_bytes)
+                        print(f"[{idx}/{total}] SUCCESS {key}.mp3 ({len(wav_bytes)} bytes) via {model}", flush=True)
+                        return True
+                    else:
+                        print(f"[{idx}/{total}] {key} got {resp.status_code}: {resp.text[:80]}", flush=True)
+                elif resp.status_code == 429:
+                    print(f"[{idx}/{total}] {key} 429 rate limit hit, backing off...", flush=True)
+                    time.sleep(5.0 + attempt * 5)
+                else:
+                    print(f"[{idx}/{total}] {key} HTTP {resp.status_code}", flush=True)
+                    time.sleep(2.0)
+            except Exception as e:
+                print(f"[{idx}/{total}] {key} Exception: {e}", flush=True)
+                time.sleep(2.0)
             
     print(f"[{idx}/{total}] FAILED {key}.mp3", flush=True)
     return False
