@@ -174,7 +174,7 @@
       e.stopPropagation();
       window.haruSound.setVoiceEnabled(true);
       updateTopBarIcons();
-      window.haruSound.speak(state.fullCurrentText, state.currentMood, state.currentPregenKey || "");
+      playCurrentPageVoice();
     });
 
     el.btnChooseHallucination.addEventListener("click", () => submitAnswer(true));
@@ -389,13 +389,35 @@
     return pages.map(p => p.replace(/^「|」$/g, "").trim());
   }
 
+  function playCurrentPageVoice() {
+    if (!state.currentPregenKey) return;
+    const q = state.deck[state.currentIndex];
+    const m = state.currentPregenKey.match(/_([qhr])$/);
+    const suffix = m ? m[1] : "";
+    const bounds = (q && q.pageBounds && suffix && Array.isArray(q.pageBounds[suffix]))
+      ? q.pageBounds[suffix]
+      : null;
+    const totalPages = state.pages.length;
+    const idx = state.pageIndex;
+
+    if (totalPages <= 1 || !bounds || bounds.length !== totalPages - 1) {
+      if (idx === 0) {
+        window.haruSound.speakSegment(state.currentPregenKey, 0, null);
+      }
+      return;
+    }
+
+    const startSec = idx === 0 ? 0 : bounds[idx - 1];
+    const endSec = idx < bounds.length ? bounds[idx] : null;
+    window.haruSound.speakSegment(state.currentPregenKey, startSec, endSec);
+  }
+
   function startPagedDialogue(fullText, mood, phase, pregenKey = "") {
     state.phase = phase;
     state.currentPregenKey = pregenKey;
     state.pages = splitIntoPages(fullText);
     state.pageIndex = 0;
 
-    window.haruSound.speak(fullText, mood, pregenKey);
     showCurrentPage();
   }
 
@@ -408,6 +430,8 @@
     const pageText = state.pages[state.pageIndex] || "";
     state.fullCurrentText = pageText;
     el.dialogueText.textContent = "";
+
+    playCurrentPageVoice();
 
     const isLastPage = state.pageIndex >= state.pages.length - 1;
     updateFooterIndicator(isLastPage);
@@ -574,6 +598,10 @@
     }
     if (el.ossanModal) {
       el.ossanModal.classList.add("hidden");
+    }
+
+    if (q.id && window.haruSound && window.haruSound.preloadQuestionVoices) {
+      window.haruSound.preloadQuestionVoices(q.id);
     }
 
     setSisterExpression("normal");

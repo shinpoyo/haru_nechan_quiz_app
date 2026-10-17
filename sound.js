@@ -10,7 +10,12 @@ class HaruSoundEngine {
     this.voiceRate = 1.06;
 
     this.currentAudio = null;
+    this.currentSource = null;
+    this.segmentTimer = null;
+    this.isVoicePlaying = false;
+    this.bufferCache = new Map();
     this.speakReqId = 0;
+    this.cacheVersion = "20261018_4";
   }
 
   initContext() {
@@ -81,7 +86,7 @@ class HaruSoundEngine {
   // 文字送り音（フルボイスを邪魔しない極小・上質なコトッというソフトタップ音）
   playBlip(pitchOffset = 0) {
     if (!this.seEnabled) return;
-    if (this.voiceEnabled && this.currentAudio && !this.currentAudio.paused) return;
+    if (this.voiceEnabled && (this.isVoicePlaying || (this.currentAudio && !this.currentAudio.paused))) return;
 
     this.initContext();
     if (!this.ctx) return;
@@ -202,6 +207,19 @@ class HaruSoundEngine {
 
   stopSpeak() {
     this.speakReqId++;
+    this.isVoicePlaying = false;
+    if (this.segmentTimer) {
+      clearInterval(this.segmentTimer);
+      this.segmentTimer = null;
+    }
+    if (this.currentSource) {
+      try {
+        this.currentSource.onended = null;
+        this.currentSource.stop();
+        this.currentSource.disconnect();
+      } catch (e) {}
+      this.currentSource = null;
+    }
     if (this.currentAudio) {
       this.currentAudio.pause();
       this.currentAudio.currentTime = 0;
@@ -212,13 +230,103 @@ class HaruSoundEngine {
     }
   }
 
-  async tryPlayFile(path, reqId) {
+  async _loadAudioBuffer(pregenKey) {
+    if (!this.ctx) return null;
+    if (this.bufferCache.has(pregenKey)) {
+      return this.bufferCache.get(pregenKey);
+    }
+    const url = `assets/voices_aoede/${pregenKey}.mp3?v=${this.cacheVersion}`;
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) return null;
+      const arrBuf = await resp.arrayBuffer();
+      const audioBuf = await this.ctx.decodeAudioData(arrBuf);
+      // メモリ肥大化防止（直近12件までキャッシュ保持）
+      if (this.bufferCache.size >= 12) {
+        const oldestKey = this.bufferCache.keys().next().value;
+        this.bufferCache.delete(oldestKey);
+      }
+      this.bufferCache.set(pregenKey, audioBuf);
+      return audioBuf;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // 問題開始時に _q, _h, _r の音声バッファを先読みしてページめくり時のラグをゼロにする
+  preloadQuestionVoices(qid) {
+    if (!this.voiceEnabled || !qid) return;
+    this.initContext();
+    if (!this.ctx) return;
+    ["q", "h", "r"].forEach((suffix) => {
+      this._loadAudioBuffer(`${qid}_${suffix}`);
+    });
+  }
+
+  // ページ単位の音声区間再生（startSec 〜 endSec まで再生してピタッと止める）
+  async speakSegment(pregenKey, startSec = 0, endSec = null) {
+    if (!this.voiceEnabled || !pregenKey) return;
+
+    this.stopSpeak();
+    this.initContext();
+    const reqId = this.speakReqId;
+
+    // 1. Web Audio API によるサンプル精度＆ゼロ遅延の区間再生
+    if (this.ctx) {
+      const audioBuf = await this._loadAudioBuffer(pregenKey);
+      if (reqId !== this.speakReqId) return;
+
+      if (audioBuf) {
+        const safeStart = Math.max(0, Math.min(startSec || 0, Math.max(0, audioBuf.duration - 0.05)));
+        const safeEnd = (endSec !== null && endSec !== undefined)
+          ? Math.min(audioBuf.duration, Math.max(safeStart + 0.05, endSec))
+          : audioBuf.duration;
+        const duration = Math.max(0.05, safeEnd - safeStart);
+
+        const source = this.ctx.createBufferSource();
+        source.buffer = audioBuf;
+
+        // ページ区切りでのプチッというクリックノイズを防ぐ微小フェード処理
+        const gainNode = this.ctx.createGain();
+        const now = this.ctx.currentTime;
+        const fadeIn = safeStart > 0.02 ? Math.min(0.015, duration * 0.2) : 0.004;
+        const fadeOut = Math.min(0.025, duration * 0.2);
+
+        gainNode.gain.setValueAtTime(0.0001, now);
+        gainNode.gain.linearRampToValueAtTime(1.0, now + fadeIn);
+        if (duration > fadeIn + fadeOut) {
+          gainNode.gain.setValueAtTime(1.0, now + duration - fadeOut);
+          gainNode.gain.linearRampToValueAtTime(0.0001, now + duration);
+        }
+
+        source.connect(gainNode);
+        gainNode.connect(this.ctx.destination);
+
+        this.currentSource = source;
+        this.isVoicePlaying = true;
+        source.onended = () => {
+          if (this.currentSource === source) {
+            this.currentSource = null;
+            this.isVoicePlaying = false;
+          }
+        };
+
+        source.start(now, safeStart, duration);
+        return;
+      }
+    }
+
+    // 2. フォールバック: HTMLAudioElement による区間再生（ローカル file:// 環境等）
+    await this.tryPlayFile(`assets/voices_aoede/${pregenKey}.mp3`, reqId, startSec, endSec);
+  }
+
+  async tryPlayFile(path, reqId, startSec = 0, endSec = null) {
     return new Promise((resolve) => {
       if (reqId !== this.speakReqId) {
         resolve(true);
         return;
       }
-      const cacheBustedPath = `${path}?v=20261018_3`;
+      const cacheBustedPath = `${path}?v=${this.cacheVersion}`;
       const audio = new Audio(cacheBustedPath);
       audio.preload = "auto";
       this.currentAudio = audio;
@@ -231,39 +339,71 @@ class HaruSoundEngine {
         }
       };
 
-      audio.onerror = () => finish(false);
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.then(() => {
-          if (reqId !== this.speakReqId) {
-            audio.pause();
-          }
+      audio.onerror = () => {
+        this.isVoicePlaying = false;
+        finish(false);
+      };
+      audio.onended = () => {
+        this.isVoicePlaying = false;
+      };
+
+      const startPlayback = () => {
+        if (reqId !== this.speakReqId) {
+          audio.pause();
           finish(true);
-        }).catch(() => finish(false));
+          return;
+        }
+        if (startSec && startSec > 0) {
+          try {
+            audio.currentTime = startSec;
+          } catch (e) {}
+        }
+        if (endSec !== null && endSec !== undefined) {
+          this.segmentTimer = setInterval(() => {
+            if (reqId !== this.speakReqId || !this.currentAudio || this.currentAudio !== audio) {
+              clearInterval(this.segmentTimer);
+              this.segmentTimer = null;
+              return;
+            }
+            if (audio.currentTime >= endSec) {
+              audio.pause();
+              this.isVoicePlaying = false;
+              clearInterval(this.segmentTimer);
+              this.segmentTimer = null;
+            }
+          }, 20);
+        }
+        this.isVoicePlaying = true;
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            if (reqId !== this.speakReqId) {
+              audio.pause();
+              this.isVoicePlaying = false;
+            }
+            finish(true);
+          }).catch(() => {
+            this.isVoicePlaying = false;
+            finish(false);
+          });
+        } else {
+          finish(true);
+        }
+      };
+
+      if (startSec && startSec > 0 && audio.readyState < 1) {
+        audio.addEventListener("loadedmetadata", startPlayback, { once: true });
+        audio.load();
       } else {
-        finish(true);
+        startPlayback();
       }
     });
   }
 
-  // 音声再生メインエントリ（事前収録Aoedeボイス専用・未収録問題は静かにスキップ）
+  // 音声再生メインエントリ（後方互換）
   async speak(text, mood = "normal", pregenKey = "") {
     if (!this.voiceEnabled || !pregenKey) return;
-    const cleanText = this.cleanTextForSpeech(text);
-    if (!cleanText) return;
-
-    this.stopSpeak();
-    const reqId = this.speakReqId;
-
-    // 事前収録 Aoede（春野詩音ボイス）音声ファイルを再生
-    const playedAoede = await this.tryPlayFile(`assets/voices_aoede/${pregenKey}.mp3`, reqId);
-    if (playedAoede || reqId !== this.speakReqId) return;
-
-    // 1クイズ1リアクション化対応: `${id}_r` が未作成で `${id}_c` が存在する場合は `${id}_c.mp3` を再生
-    if (pregenKey.endsWith("_r")) {
-      const fallbackKey = pregenKey.replace(/_r$/, "_c");
-      await this.tryPlayFile(`assets/voices_aoede/${fallbackKey}.mp3`, reqId);
-    }
+    await this.speakSegment(pregenKey, 0, null);
   }
 }
 
