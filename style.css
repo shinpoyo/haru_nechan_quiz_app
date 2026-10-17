@@ -221,16 +221,17 @@ html, body {
 
 .vn-choice-bar {
   width: 100%;
-  padding: 10px 16px;
+  padding: 10px 10px;
   border-radius: 12px;
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: clamp(0.75rem, 3.4vw, 0.9rem);
   font-weight: 800;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
+  white-space: nowrap;
   backdrop-filter: blur(8px);
   transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
   box-shadow: 0 4px 14px rgba(35, 12, 24, 0.18);
@@ -262,8 +263,8 @@ html, body {
   background: rgba(255, 250, 225, var(--ui-opacity));
   color: #92400e;
   border: 1.5px solid rgba(245, 158, 11, 0.7);
-  font-size: 0.8rem;
-  padding: 7px 14px;
+  font-size: clamp(0.73rem, 3.2vw, 0.82rem);
+  padding: 8px 10px;
 }
 
 /* ===== 回答直後に同時表示される「📱スマホ検索（ファクトチェック結果）」カード ===== */

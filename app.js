@@ -237,7 +237,7 @@
   }
 
   // 1文が maxLen を超える場合、意味の区切れ（接続助詞・読点）で安全に句分割
-  function splitLongSentenceByClauses(sentence, maxLen = 60) {
+  function splitLongSentenceByClauses(sentence, maxLen = 54) {
     if (sentence.length <= maxLen) return [sentence];
 
     let inDouble = 0;
@@ -293,7 +293,7 @@
         break;
       }
 
-      const validPoints = breakPoints.filter(bp => bp.index >= start + 20 && bp.index <= start + maxLen);
+      const validPoints = breakPoints.filter(bp => bp.index >= start + 18 && bp.index <= start + maxLen);
 
       if (validPoints.length > 0) {
         validPoints.sort((a, b) => (b.weight - a.weight) || (b.index - a.index));
@@ -302,7 +302,7 @@
         start = chosen;
       } else {
         const fallbackPoints = breakPoints.filter(bp => bp.index > start);
-        if (fallbackPoints.length > 0 && fallbackPoints[0].index <= start + maxLen + 10) {
+        if (fallbackPoints.length > 0 && fallbackPoints[0].index <= start + maxLen + 8) {
           const chosen = fallbackPoints[0].index;
           chunks.push(sentence.slice(start, chosen));
           start = chosen;
@@ -318,7 +318,7 @@
   }
 
   // 意味の区切れ（文単位・接続句単位）を保ち、スマホ3行に余裕を持って収まるよう自然にページ分割
-  function splitIntoPages(text, maxLen = 60) {
+  function splitIntoPages(text, maxLen = 54) {
     let cleaned = text.trim();
     // 冒頭と末尾の「」を取り除く（セリフを「」で括らない）
     cleaned = cleaned.replace(/^「|」$/g, "").trim();
@@ -487,9 +487,21 @@
     updateLifetimeStatsUI();
   }
 
+  // フルボイス（_q, _h, _r の3種すべて）が収録済みの問題ID判定
+  function hasFullVoice(qid) {
+    if (!qid) return false;
+    const num = parseInt(qid.replace("q", ""), 10);
+    return (num >= 1 && num <= 80) || num === 82 || num === 84;
+  }
+
   function startCuratedGame(count) {
     state.lastModeCount = count;
-    const pool = [...window.HARU_QUESTIONS];
+    const allPool = [...window.HARU_QUESTIONS];
+    // ボイスON時は、途中で声が出なくなるのを防ぐためフルボイス完備の問題（82問）から出題
+    const voicedPool = allPool.filter(q => hasFullVoice(q.id));
+    const pool = (window.haruSound && window.haruSound.voiceEnabled && voicedPool.length >= count)
+      ? voicedPool
+      : allPool;
     const shuffled = shuffleArray(pool).slice(0, Math.min(count, pool.length));
     beginQuizSession(shuffled);
   }

@@ -218,16 +218,31 @@ class HaruSoundEngine {
         resolve(true);
         return;
       }
-      const audio = new Audio(path);
-      audio.oncanplaythrough = () => {
-        if (reqId !== this.speakReqId) {
-          resolve(true);
-          return;
+      const cacheBustedPath = `${path}?v=20261017_2`;
+      const audio = new Audio(cacheBustedPath);
+      audio.preload = "auto";
+      this.currentAudio = audio;
+
+      let settled = false;
+      const finish = (ok) => {
+        if (!settled) {
+          settled = true;
+          resolve(ok);
         }
-        this.currentAudio = audio;
-        audio.play().then(() => resolve(true)).catch(() => resolve(false));
       };
-      audio.onerror = () => resolve(false);
+
+      audio.onerror = () => finish(false);
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          if (reqId !== this.speakReqId) {
+            audio.pause();
+          }
+          finish(true);
+        }).catch(() => finish(false));
+      } else {
+        finish(true);
+      }
     });
   }
 
