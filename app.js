@@ -56,6 +56,14 @@
     phoneResultCard: document.getElementById("phoneResultCard"),
     phoneVerdictBadge: document.getElementById("phoneVerdictBadge"),
     phoneExplanationText: document.getElementById("phoneExplanationText"),
+    btnOpenOssan: document.getElementById("btnOpenOssan"),
+
+    ossanModal: document.getElementById("ossanModal"),
+    ossanCard: document.getElementById("ossanCard"),
+    ossanHalluType: document.getElementById("ossanHalluType"),
+    ossanHalluReason: document.getElementById("ossanHalluReason"),
+    btnCloseOssan: document.getElementById("btnCloseOssan"),
+    btnCloseOssanTop: document.getElementById("btnCloseOssanTop"),
 
     resultRankTitle: document.getElementById("resultRankTitle"),
     resultSisterComment: document.getElementById("resultSisterComment"),
@@ -138,6 +146,29 @@
         handleTextboxAdvance();
       });
     }
+
+    if (el.btnOpenOssan) {
+      el.btnOpenOssan.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openOssanModal();
+      });
+    }
+
+    if (el.ossanCard) {
+      el.ossanCard.addEventListener("click", (e) => {
+        e.stopPropagation();
+      });
+    }
+
+    const closeOssan = (e) => {
+      if (e) e.stopPropagation();
+      window.haruSound.playClick();
+      if (el.ossanModal) el.ossanModal.classList.add("hidden");
+    };
+
+    if (el.btnCloseOssan) el.btnCloseOssan.addEventListener("click", closeOssan);
+    if (el.btnCloseOssanTop) el.btnCloseOssanTop.addEventListener("click", closeOssan);
+    if (el.ossanModal) el.ossanModal.addEventListener("click", closeOssan);
 
     el.btnReplayVoice.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -491,13 +522,13 @@
   function hasFullVoice(qid) {
     if (!qid) return false;
     const num = parseInt(qid.replace("q", ""), 10);
-    return (num >= 1 && num <= 80) || num === 82 || num === 84;
+    return (num >= 1 && num <= 82) || num === 84 || num === 86;
   }
 
   function startCuratedGame(count) {
     state.lastModeCount = count;
     const allPool = [...window.HARU_QUESTIONS];
-    // ボイスON時は、途中で声が出なくなるのを防ぐためフルボイス完備の問題（82問）から出題
+    // ボイスON時は、途中で声が出なくなるのを防ぐためフルボイス完備の問題から出題
     const voicedPool = allPool.filter(q => hasFullVoice(q.id));
     const pool = (window.haruSound && window.haruSound.voiceEnabled && voicedPool.length >= count)
       ? voicedPool
@@ -532,9 +563,31 @@
     if (el.phoneResultCard) {
       el.phoneResultCard.classList.add("hidden");
     }
+    if (el.btnOpenOssan) {
+      el.btnOpenOssan.classList.add("hidden");
+    }
+    if (el.ossanModal) {
+      el.ossanModal.classList.add("hidden");
+    }
 
     setSisterExpression("normal");
     startPagedDialogue(q.statement, "normal", "question", q.id ? `${q.id}_q` : "");
+  }
+
+  function openOssanModal() {
+    const q = state.deck[state.currentIndex];
+    if (!q || !q.isHallucination) return;
+
+    window.haruSound.playHint();
+    if (el.ossanHalluType) {
+      el.ossanHalluType.textContent = `🧠 ${q.halluType || "記憶・文脈の混同型"}`;
+    }
+    if (el.ossanHalluReason) {
+      el.ossanHalluReason.textContent = q.halluReason || "フッ、これはもっともらしい言葉を確率的に繋ぎ合わせた典型的なハルシネーションだね！";
+    }
+    if (el.ossanModal) {
+      el.ossanModal.classList.remove("hidden");
+    }
   }
 
   function submitAnswer(guessedHallucination) {
@@ -587,11 +640,21 @@
     if (el.phoneExplanationText) {
       el.phoneExplanationText.textContent = cleanExplanation;
     }
+
+    // 嘘（ハルシネーション）の問題のときのみ、厄介な解説おじさん呼び出しボタンを表示
+    if (el.btnOpenOssan) {
+      if (q.isHallucination) {
+        el.btnOpenOssan.classList.remove("hidden");
+      } else {
+        el.btnOpenOssan.classList.add("hidden");
+      }
+    }
+
     if (el.phoneResultCard) {
       el.phoneResultCard.classList.remove("hidden");
     }
 
-    // 2. 下部の固定テキストボックスには春野詩音（おバカで可愛いお姉ちゃん）の1クイズ1リアクションを同時表示＆ボイス再生
+    // 2. 下部の固定テキストボックスには春野詩音の1クイズ1リアクションを同時表示＆ボイス再生
     setSisterExpression(nextExpr, animClass);
 
     const reactionLine = q.reaction || q.reactionCorrect || "";

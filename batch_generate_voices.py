@@ -30,12 +30,22 @@ if not API_KEY:
 OUT_DIR = Path("assets/voices_aoede")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# 24000Hz PCM を 25000Hz (+4.2%) の絶妙な少女トーンWAVヘッダーで保存（Option 3仕様）
+# 24000Hz PCM を 25000Hz (+4.2%) の絶妙な少女トーンWAVヘッダーで保存（Option 3仕様＋前後フェードでノイズ防止）
 def pcm_to_wav_opt3(pcm_bytes: bytes, target_rate: int = 25000) -> bytes:
+    n_samples = len(pcm_bytes) // 2
+    samples = list(struct.unpack(f"<{n_samples}h", pcm_bytes[:n_samples * 2]))
+    fade_in = min(len(samples), int(target_rate * 0.03))
+    fade_out = min(len(samples), int(target_rate * 0.05))
+    for i in range(fade_in):
+        samples[i] = int(samples[i] * (i / fade_in))
+    for i in range(fade_out):
+        samples[-1 - i] = int(samples[-1 - i] * (i / fade_out))
+    clean_pcm = struct.pack(f"<{len(samples)}h", *samples)
+
     header = struct.pack(
         "<4sI4s4sIHHIIHH4sI",
         b"RIFF",
-        36 + len(pcm_bytes),
+        36 + len(clean_pcm),
         b"WAVE",
         b"fmt ",
         16,
@@ -46,9 +56,9 @@ def pcm_to_wav_opt3(pcm_bytes: bytes, target_rate: int = 25000) -> bytes:
         2,
         16,
         b"data",
-        len(pcm_bytes),
+        len(clean_pcm),
     )
-    return header + pcm_bytes
+    return header + clean_pcm
 
 def clean_text(text: str) -> str:
     text = re.sub(r"【.*?】", "", text)
@@ -67,9 +77,7 @@ def generate_one_voice(key: str, raw_text: str, idx: int, total: int):
     prompt = text
     
     models = [
-        "gemini-3.8-flash-lite-tts",
-        "gemini-3.8-flash-tts",
-        "gemini-3.1-flash-tts-preview"
+        "gemini-2.5-flash-preview-tts"
     ]
     
     payload = {
@@ -86,7 +94,7 @@ def generate_one_voice(key: str, raw_text: str, idx: int, total: int):
     
     for model in models:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={API_KEY}"
-        for attempt in range(2):
+        for attempt in range(6):
             try:
                 resp = requests.post(url, json=payload, timeout=45)
                 if resp.status_code == 200:
@@ -102,18 +110,20 @@ def generate_one_voice(key: str, raw_text: str, idx: int, total: int):
                         wav_bytes = pcm_to_wav_opt3(base64.b64decode(b64), target_rate=25000)
                         out_file.write_bytes(wav_bytes)
                         print(f"[{idx}/{total}] SUCCESS {key}.mp3 ({len(wav_bytes)} bytes) via {model}", flush=True)
+                        time.sleep(2.5)
                         return True
                     else:
                         print(f"[{idx}/{total}] {key} got {resp.status_code}: {resp.text[:80]}", flush=True)
                 elif resp.status_code == 429:
-                    print(f"[{idx}/{total}] {key} 429 rate limit hit, backing off...", flush=True)
-                    time.sleep(5.0 + attempt * 5)
+                    wait_s = 8.0 + attempt * 6.0
+                    print(f"[{idx}/{total}] {key} 429 RPM limit hit, waiting {wait_s}s...", flush=True)
+                    time.sleep(wait_s)
                 else:
                     print(f"[{idx}/{total}] {key} HTTP {resp.status_code}", flush=True)
-                    time.sleep(2.0)
+                    time.sleep(3.0)
             except Exception as e:
                 print(f"[{idx}/{total}] {key} Exception: {e}", flush=True)
-                time.sleep(2.0)
+                time.sleep(3.0)
             
     print(f"[{idx}/{total}] FAILED {key}.mp3", flush=True)
     return False

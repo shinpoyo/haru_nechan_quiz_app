@@ -1002,3 +1002,181 @@ html, body {
   }
 }
 
+/* ===== 厄介な小太りメガネのオッサン：解説呼び出しボタン＆立ち絵ステージモーダル ===== */
+.ossan-trigger-btn {
+  margin-top: 4px;
+  width: 100%;
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  color: #fde047;
+  border: 1.5px solid #facc15;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: clamp(0.72rem, 2.8vw, 0.8rem);
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.25);
+  transition: transform 0.14s ease, filter 0.14s ease;
+}
+
+.ossan-trigger-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.12);
+}
+
+.ossan-trigger-btn:active {
+  transform: translateY(1px);
+}
+
+.ossan-btn-icon {
+  font-size: 0.95rem;
+}
+
+.ossan-backdrop {
+  background: rgba(10, 15, 28, 0.72);
+  backdrop-filter: blur(6px);
+  z-index: 80;
+}
+
+.ossan-stage-card {
+  width: 100%;
+  max-width: 500px;
+  max-height: 92dvh;
+  background: #0f172a;
+  border: 2.5px solid #38bdf8;
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.65), 0 0 24px rgba(56, 189, 248, 0.28);
+  animation: ossanCutIn 0.26s cubic-bezier(0.18, 0.89, 0.32, 1.15);
+}
+
+@keyframes ossanCutIn {
+  from { opacity: 0; transform: scale(0.92) translateY(16px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.ossan-portrait-area {
+  position: relative;
+  width: 100%;
+  height: clamp(230px, 40dvh, 320px);
+  background: #1e293b;
+  overflow: hidden;
+  border-bottom: 2px solid #38bdf8;
+}
+
+.ossan-portrait-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 14%;
+  display: block;
+}
+
+.ossan-cutin-badge {
+  position: absolute;
+  left: 10px;
+  bottom: 8px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #fde047;
+  border: 1.5px solid #facc15;
+  border-radius: 999px;
+  padding: 3px 11px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+}
+
+.ossan-close-top-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  background: rgba(15, 23, 42, 0.75);
+  color: #fff;
+  font-weight: 900;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.ossan-dialogue-box {
+  padding: 12px 14px 14px;
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+  color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.ossan-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.ossan-nameplate {
+  background: #0284c7;
+  color: #fff;
+  font-size: 0.76rem;
+  font-weight: 900;
+  padding: 3px 10px;
+  border-radius: 7px;
+  white-space: nowrap;
+}
+
+.ossan-type-badge {
+  background: rgba(250, 204, 21, 0.16);
+  color: #fde047;
+  border: 1px solid rgba(250, 204, 21, 0.55);
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.ossan-reason-text {
+  font-size: clamp(0.82rem, 2.5vw, 0.9rem);
+  font-weight: 700;
+  line-height: 1.58;
+  color: #e2e8f0;
+  background: rgba(2, 6, 23, 0.55);
+  border-left: 3.5px solid #38bdf8;
+  border-radius: 6px;
+  padding: 9px 11px;
+  margin: 0;
+  max-height: 28dvh;
+  overflow-y: auto;
+}
+
+.ossan-close-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+  color: #fff;
+  border: none;
+  border-radius: 11px;
+  padding: 10px 14px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.ossan-close-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+
