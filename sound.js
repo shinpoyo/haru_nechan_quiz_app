@@ -218,7 +218,7 @@ class HaruSoundEngine {
         resolve(true);
         return;
       }
-      const cacheBustedPath = `${path}?v=20261017_2`;
+      const cacheBustedPath = `${path}?v=20261018_3`;
       const audio = new Audio(cacheBustedPath);
       audio.preload = "auto";
       this.currentAudio = audio;
