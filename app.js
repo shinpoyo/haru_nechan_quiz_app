@@ -363,13 +363,26 @@
     const q = state.deck[state.currentIndex];
     const m = state.currentPregenKey.match(/_([qhr])$/);
     const suffix = m ? m[1] : "";
-    const bounds = (q && q.pageBounds && suffix && Array.isArray(q.pageBounds[suffix]))
+    let bounds = (q && q.pageBounds && suffix && Array.isArray(q.pageBounds[suffix]))
       ? q.pageBounds[suffix]
       : null;
     const totalPages = state.pages.length;
     const idx = state.pageIndex;
 
-    if (totalPages <= 1 || !bounds || bounds.length !== totalPages - 1) {
+    if (totalPages > 1 && (!bounds || bounds.length !== totalPages - 1)) {
+      // 境界値が未登録の場合の安全な文字数比率フォールバック（1ページ目のセリフで止まるようにする）
+      const pageLens = state.pages.map(p => Math.max(1, p.length));
+      const totalChars = pageLens.reduce((a, b) => a + b, 0);
+      const estTotalSec = totalChars * 0.165;
+      bounds = [];
+      let cum = 0;
+      for (let i = 0; i < totalPages - 1; i++) {
+        cum += pageLens[i];
+        bounds.push(Number((estTotalSec * (cum / totalChars)).toFixed(2)));
+      }
+    }
+
+    if (totalPages <= 1) {
       if (idx === 0) {
         window.haruSound.speakSegment(state.currentPregenKey, 0, null);
       }

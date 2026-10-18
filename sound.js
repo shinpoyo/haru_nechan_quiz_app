@@ -15,7 +15,7 @@ class HaruSoundEngine {
     this.isVoicePlaying = false;
     this.bufferCache = new Map();
     this.speakReqId = 0;
-    this.cacheVersion = "20261018_6";
+    this.cacheVersion = "20261018_7";
   }
 
   initContext() {
@@ -209,6 +209,7 @@ class HaruSoundEngine {
     this.speakReqId++;
     this.isVoicePlaying = false;
     if (this.segmentTimer) {
+      clearTimeout(this.segmentTimer);
       clearInterval(this.segmentTimer);
       this.segmentTimer = null;
     }
@@ -312,6 +313,14 @@ class HaruSoundEngine {
         };
 
         source.start(now, safeStart, duration);
+        source.stop(now + duration);
+
+        // モバイル・特定ブラウザでのduration未対応や音声 offload に備えた絶対停止タイマー
+        this.segmentTimer = setTimeout(() => {
+          if (this.currentSource === source && reqId === this.speakReqId) {
+            this.stopSpeak();
+          }
+        }, Math.ceil(duration * 1000) + 15);
         return;
       }
     }
@@ -359,19 +368,13 @@ class HaruSoundEngine {
           } catch (e) {}
         }
         if (endSec !== null && endSec !== undefined) {
-          this.segmentTimer = setInterval(() => {
-            if (reqId !== this.speakReqId || !this.currentAudio || this.currentAudio !== audio) {
-              clearInterval(this.segmentTimer);
-              this.segmentTimer = null;
-              return;
-            }
-            if (audio.currentTime >= endSec) {
+          const duration = Math.max(0.05, endSec - (startSec || 0));
+          this.segmentTimer = setTimeout(() => {
+            if (reqId === this.speakReqId && this.currentAudio === audio) {
               audio.pause();
               this.isVoicePlaying = false;
-              clearInterval(this.segmentTimer);
-              this.segmentTimer = null;
             }
-          }, 20);
+          }, Math.ceil(duration * 1000));
         }
         this.isVoicePlaying = true;
         const playPromise = audio.play();
