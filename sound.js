@@ -265,7 +265,8 @@ class HaruSoundEngine {
   }
 
   // ページ単位の音声区間再生（startSec 〜 endSec まで再生してピタッと止める）
-  async speakSegment(pregenKey, startSec = 0, endSec = null) {
+  // ページ単位の音声区間再生（startSec 〜 endSec まで再生してピタッと止める）
+  async speakSegment(pregenKey, startSec = 0, endSec = null, onEnded = null) {
     if (!this.voiceEnabled || !pregenKey) return;
 
     this.stopSpeak();
@@ -305,10 +306,22 @@ class HaruSoundEngine {
 
         this.currentSource = source;
         this.isVoicePlaying = true;
-        source.onended = () => {
-          if (this.currentSource === source) {
+
+        let endedFired = false;
+        const triggerEnded = () => {
+          if (!endedFired && reqId === this.speakReqId) {
+            endedFired = true;
             this.currentSource = null;
             this.isVoicePlaying = false;
+            if (typeof onEnded === "function") {
+              onEnded();
+            }
+          }
+        };
+
+        source.onended = () => {
+          if (this.currentSource === source) {
+            triggerEnded();
           }
         };
 
@@ -318,6 +331,7 @@ class HaruSoundEngine {
         // モバイル・特定ブラウザでのduration未対応や音声 offload に備えた絶対停止タイマー
         this.segmentTimer = setTimeout(() => {
           if (this.currentSource === source && reqId === this.speakReqId) {
+            triggerEnded();
             this.stopSpeak();
           }
         }, Math.ceil(duration * 1000) + 15);
@@ -326,10 +340,10 @@ class HaruSoundEngine {
     }
 
     // 2. フォールバック: HTMLAudioElement による区間再生（ローカル file:// 環境等）
-    await this.tryPlayFile(`assets/voices_aoede/${pregenKey}.mp3`, reqId, startSec, endSec);
+    await this.tryPlayFile(`assets/voices_aoede/${pregenKey}.mp3`, reqId, startSec, endSec, onEnded);
   }
 
-  async tryPlayFile(path, reqId, startSec = 0, endSec = null) {
+  async tryPlayFile(path, reqId, startSec = 0, endSec = null, onEnded = null) {
     return new Promise((resolve) => {
       if (reqId !== this.speakReqId) {
         resolve(true);
@@ -348,12 +362,23 @@ class HaruSoundEngine {
         }
       };
 
+      let endedFired = false;
+      const triggerEnded = () => {
+        if (!endedFired && reqId === this.speakReqId) {
+          endedFired = true;
+          this.isVoicePlaying = false;
+          if (typeof onEnded === "function") {
+            onEnded();
+          }
+        }
+      };
+
       audio.onerror = () => {
         this.isVoicePlaying = false;
         finish(false);
       };
       audio.onended = () => {
-        this.isVoicePlaying = false;
+        triggerEnded();
       };
 
       const startPlayback = () => {
@@ -372,7 +397,7 @@ class HaruSoundEngine {
           this.segmentTimer = setTimeout(() => {
             if (reqId === this.speakReqId && this.currentAudio === audio) {
               audio.pause();
-              this.isVoicePlaying = false;
+              triggerEnded();
             }
           }, Math.ceil(duration * 1000));
         }

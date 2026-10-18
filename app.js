@@ -425,7 +425,7 @@
     const idx = state.pageIndex;
 
     if (totalPages > 1 && (!bounds || bounds.length !== totalPages - 1)) {
-      // 境界値が未登録の場合の安全な文字数比率フォールバック（1ページ目のセリフで止まるようにする）
+      // 境界値が未登録の場合の安全な文字数比率フォールバック
       const pageLens = state.pages.map(p => Math.max(1, p.length));
       const totalChars = pageLens.reduce((a, b) => a + b, 0);
       const estTotalSec = totalChars * 0.165;
@@ -437,16 +437,30 @@
       }
     }
 
+    const currentKey = state.currentPregenKey;
+    const pageAtCall = idx;
+
+    const onSegmentEnded = () => {
+      // 音声が現在のページの末尾まで自然に到達した時、自動で次ページへめくる
+      // （手動タップなしでも会話が途切れず流れるように進み、繰り返しがゼロになる）
+      if (state.currentPregenKey === currentKey && state.pageIndex === pageAtCall) {
+        if (state.pageIndex < state.pages.length - 1) {
+          state.pageIndex++;
+          showCurrentPage();
+        }
+      }
+    };
+
     if (totalPages <= 1) {
       if (idx === 0) {
-        window.haruSound.speakSegment(state.currentPregenKey, 0, null);
+        window.haruSound.speakSegment(state.currentPregenKey, 0, null, onSegmentEnded);
       }
       return;
     }
 
     const startSec = idx === 0 ? 0 : bounds[idx - 1];
     const endSec = idx < bounds.length ? bounds[idx] : null;
-    window.haruSound.speakSegment(state.currentPregenKey, startSec, endSec);
+    window.haruSound.speakSegment(state.currentPregenKey, startSec, endSec, onSegmentEnded);
   }
 
   function startPagedDialogue(fullText, mood, phase, pregenKey = "") {
@@ -514,7 +528,7 @@
       el.btnNextAction.textContent = "▼";
     } else if (state.phase === "question") {
       el.pageHintText.textContent = `${pageBadge}上の選択肢から回答`;
-      el.btnNextAction.textContent = totalPages > 1 ? "↺" : "▲";
+      el.btnNextAction.textContent = "▲";
     } else {
       const isLastQ = state.currentIndex + 1 >= state.deck.length;
       el.pageHintText.textContent = isLastQ ? "タップで結果発表へ" : "タップで次の話へ";
@@ -539,14 +553,10 @@
 
     // 最後のページの場合の進行処理
     if (state.phase === "question") {
-      if (state.pages.length > 1) {
-        // もう一度最初から読み返す
-        window.haruSound.playClick();
-        state.pageIndex = 0;
-        showCurrentPage();
-      } else {
-        el.choiceContainer.classList.toggle("hidden");
-      }
+      // 最後のページでは回答選択肢がすでに表示されているため、
+      // テキストボックスタップによる先頭ループ（再読み上げの繰り返し）は行わない
+      // （※もう一度聴き直したい場合は右上の🔊ボタンで可能）
+      return;
     } else {
       window.haruSound.playClick();
       state.currentIndex++;
