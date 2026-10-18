@@ -1001,3 +1001,170 @@ html, body {
     line-height: 1.45;
   }
 }
+
+/* サブモード選択行（今日の7問 & 嘘図鑑） */
+.sub-mode-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.sub-mode-row .secondary-btn {
+  padding: 8px 10px;
+}
+
+.sub-mode-row .btn-main-text {
+  font-size: 0.86rem;
+}
+
+.sub-mode-row .btn-sub-text {
+  font-size: 0.66rem;
+  color: var(--pink-dark);
+}
+
+/* シェアボタン */
+.share-btn {
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #1d9bf0 0%, #0284c7 100%);
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 800;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+}
+
+.share-btn:hover {
+  filter: brightness(1.08);
+}
+
+/* 嘘図鑑モーダル */
+.zukan-card {
+  max-width: 520px;
+  max-height: 85dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.zukan-count {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--pink-primary);
+  margin-left: 6px;
+}
+
+.zukan-stats {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+.zukan-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #f3d4e0;
+  padding-bottom: 6px;
+}
+
+.zukan-tab {
+  background: #fdf2f6;
+  border: 1px solid #f9ccd9;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #6b5863;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.zukan-tab.active {
+  background: var(--pink-primary);
+  color: #fff;
+  border-color: var(--pink-primary);
+}
+
+.zukan-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 4px;
+  max-height: 55dvh;
+}
+
+.zukan-item {
+  background: #fff;
+  border-radius: 12px;
+  border: 1.5px solid #f3d4e0;
+  padding: 10px;
+  text-align: left;
+  border-left: 4.5px solid #ccc;
+  transition: border-color 0.15s ease;
+}
+
+.zukan-item.is-lie {
+  border-left-color: var(--hallu-rose);
+}
+
+.zukan-item.is-truth {
+  border-left-color: var(--truth-teal);
+}
+
+.zukan-item.locked {
+  border-left-color: #cbd5e1;
+  background: #f8fafc;
+  opacity: 0.75;
+}
+
+.zukan-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.zukan-item-cat {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--pink-dark);
+}
+
+.zukan-item-badge {
+  font-size: 0.66rem;
+  font-weight: 900;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.zukan-item-badge.lie-badge {
+  background: #ffe4e6;
+  color: #e11d48;
+}
+
+.zukan-item-badge.truth-badge {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.zukan-item-statement {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #3a1f2d;
+  line-height: 1.45;
+  margin-bottom: 6px;
+}
+
+.zukan-item-exp {
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: #555;
+  background: #fdf5f8;
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin-top: 4px;
+}
+

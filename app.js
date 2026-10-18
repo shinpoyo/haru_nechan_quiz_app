@@ -18,6 +18,7 @@
     fullCurrentText: "",
     currentMood: "normal",
     lastModeCount: 7,
+    isDailyMode: false,
     uiOpacityPct: parseInt(localStorage.getItem("haru_ui_opacity") || "75", 10)
   };
 
@@ -38,6 +39,19 @@
     resultScreen: document.getElementById("resultScreen"),
 
     btnStartStandard: document.getElementById("btnStartStandard"),
+    btnStartDaily: document.getElementById("btnStartDaily"),
+    dailyStatusText: document.getElementById("dailyStatusText"),
+    btnOpenZukan: document.getElementById("btnOpenZukan"),
+    zukanProgressText: document.getElementById("zukanProgressText"),
+    btnShareResult: document.getElementById("btnShareResult"),
+
+    zukanModal: document.getElementById("zukanModal"),
+    zukanCount: document.getElementById("zukanCount"),
+    zukanStats: document.getElementById("zukanStats"),
+    zukanTabs: document.getElementById("zukanTabs"),
+    zukanList: document.getElementById("zukanList"),
+    btnCloseZukan: document.getElementById("btnCloseZukan"),
+
     statAccuracy: document.getElementById("statAccuracy"),
 
     categoryTag: document.getElementById("categoryTag"),
@@ -79,6 +93,7 @@
     applyUIOpacity(state.uiOpacityPct);
     updateTopBarIcons();
     updateLifetimeStatsUI();
+    updateTitleScreenBadges();
 
     el.btnHomeLogo.addEventListener("click", () => {
       window.haruSound.playClick();
@@ -119,8 +134,48 @@
 
     el.btnStartStandard.addEventListener("click", () => {
       window.haruSound.playClick();
+      state.isDailyMode = false;
       startCuratedGame(7);
     });
+
+    if (el.btnStartDaily) {
+      el.btnStartDaily.addEventListener("click", () => {
+        window.haruSound.playClick();
+        startDailyGame();
+      });
+    }
+
+    if (el.btnOpenZukan) {
+      el.btnOpenZukan.addEventListener("click", () => {
+        window.haruSound.playClick();
+        openZukanModal();
+      });
+    }
+
+    if (el.btnCloseZukan) {
+      el.btnCloseZukan.addEventListener("click", () => {
+        window.haruSound.playClick();
+        if (el.zukanModal) el.zukanModal.classList.add("hidden");
+      });
+    }
+
+    if (el.zukanTabs) {
+      el.zukanTabs.addEventListener("click", (e) => {
+        const btn = e.target.closest(".zukan-tab");
+        if (!btn) return;
+        window.haruSound.playClick();
+        el.zukanTabs.querySelectorAll(".zukan-tab").forEach(t => t.classList.remove("active"));
+        btn.classList.add("active");
+        renderZukanList(btn.dataset.filter || "all");
+      });
+    }
+
+    if (el.btnShareResult) {
+      el.btnShareResult.addEventListener("click", () => {
+        window.haruSound.playClick();
+        shareResult();
+      });
+    }
 
     el.dialogueBody.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -522,6 +577,7 @@
     el.comboPill.classList.add("hidden");
     el.progressPill.textContent = "待機中";
     updateLifetimeStatsUI();
+    updateTitleScreenBadges();
   }
 
   // フルボイス（_q, _h, _r の3種すべて）が収録済みの問題ID判定
@@ -653,6 +709,8 @@
       pointTag: q.pointTag
     });
 
+    recordZukanResult(q, isCorrect);
+
     const total = parseInt(localStorage.getItem("haru_total_played") || "0", 10) + 1;
     const corr = parseInt(localStorage.getItem("haru_total_correct") || "0", 10) + (isCorrect ? 1 : 0);
     const prevBest = parseInt(localStorage.getItem("haru_best_combo") || "0", 10);
@@ -705,6 +763,12 @@
     setSisterExpression(expr, "anim-happy");
     window.haruSound.speak(comment, expr);
 
+    if (state.isDailyMode) {
+      const today = getTodayKey();
+      localStorage.setItem(`haru_daily_${today}`, `${state.score}/${total}`);
+      updateTitleScreenBadges();
+    }
+
     el.resultHistoryList.innerHTML = "";
     state.history.forEach((h, i) => {
       const row = document.createElement("div");
@@ -720,6 +784,210 @@
       `;
       el.resultHistoryList.appendChild(row);
     });
+  }
+
+  // ===== 今日の7問（デイリーモード） =====
+  function getTodayKey() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
+  function getSeedFromString(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash);
+  }
+
+  function seededShuffle(arr, seed) {
+    const copy = [...arr];
+    let s = seed || 123456789;
+    for (let i = copy.length - 1; i > 0; i--) {
+      s = (s * 9301 + 49297) % 233280;
+      const rnd = s / 233280;
+      const j = Math.floor(rnd * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  }
+
+  function startDailyGame() {
+    state.isDailyMode = true;
+    state.lastModeCount = 7;
+    const today = getTodayKey();
+    const seed = getSeedFromString(`haru-daily-${today}`);
+    const allPool = [...window.HARU_QUESTIONS];
+    const voicedPool = allPool.filter(q => hasFullVoice(q.id));
+    const pool = (window.haruSound && window.haruSound.voiceEnabled && voicedPool.length >= 7)
+      ? voicedPool
+      : allPool;
+    const shuffled = seededShuffle(pool, seed).slice(0, 7);
+    beginQuizSession(shuffled);
+  }
+
+  function updateTitleScreenBadges() {
+    const today = getTodayKey();
+    const dailyDone = localStorage.getItem(`haru_daily_${today}`);
+    if (el.dailyStatusText) {
+      if (dailyDone) {
+        el.dailyStatusText.textContent = `✅ 今日の7問クリア済み（スコア: ${dailyDone}）`;
+        el.dailyStatusText.style.color = "#27ae60";
+      } else {
+        el.dailyStatusText.textContent = "📅 毎日0時更新・全プレイヤー共通！";
+        el.dailyStatusText.style.color = "";
+      }
+    }
+
+    const zukanData = getZukanStorage();
+    const unlockedCount = Object.keys(zukanData).length;
+    const totalQ = (window.HARU_QUESTIONS && window.HARU_QUESTIONS.length) || 100;
+    if (el.zukanProgressText) {
+      el.zukanProgressText.textContent = `${unlockedCount} / ${totalQ} 解放済み`;
+    }
+  }
+
+  // ===== 嘘図鑑（コレクションシステム） =====
+  function getZukanStorage() {
+    try {
+      return JSON.parse(localStorage.getItem("haru_zukan") || "{}");
+    } catch {
+      return {};
+    }
+  }
+
+  function recordZukanResult(q, isCorrect) {
+    if (!q || !q.id) return;
+    const zukan = getZukanStorage();
+    const cur = zukan[q.id] || { seen: 0, correct: 0, wrong: 0 };
+    cur.seen = (cur.seen || 0) + 1;
+    if (isCorrect) cur.correct = (cur.correct || 0) + 1;
+    else cur.wrong = (cur.wrong || 0) + 1;
+    cur.lastDate = getTodayKey();
+    zukan[q.id] = cur;
+    localStorage.setItem("haru_zukan", JSON.stringify(zukan));
+  }
+
+  function openZukanModal() {
+    if (!el.zukanModal) return;
+    el.zukanModal.classList.remove("hidden");
+    const activeTab = el.zukanTabs ? el.zukanTabs.querySelector(".zukan-tab.active") : null;
+    const filter = (activeTab && activeTab.dataset.filter) || "all";
+    renderZukanList(filter);
+  }
+
+  function renderZukanList(filter = "all") {
+    if (!el.zukanList) return;
+    const allQuestions = window.HARU_QUESTIONS || [];
+    const zukan = getZukanStorage();
+    const unlockedCount = Object.keys(zukan).length;
+    const totalCount = allQuestions.length;
+
+    if (el.zukanCount) {
+      el.zukanCount.textContent = `${unlockedCount} / ${totalCount}`;
+    }
+
+    if (el.zukanStats) {
+      const totalSeen = Object.values(zukan).reduce((sum, item) => sum + (item.seen || 0), 0);
+      const totalTricked = Object.values(zukan).reduce((sum, item) => sum + (item.wrong || 0), 0);
+      el.zukanStats.textContent = `総遭遇回数: ${totalSeen}回 ｜ ねーちゃんに騙された回数: ${totalTricked}回`;
+    }
+
+    el.zukanList.innerHTML = "";
+
+    const filtered = allQuestions.filter(q => {
+      const data = zukan[q.id];
+      if (filter === "lie") return q.isHallucination;
+      if (filter === "truth") return !q.isHallucination;
+      if (filter === "miss") return data && data.wrong > 0;
+      return true;
+    });
+
+    filtered.forEach(q => {
+      const data = zukan[q.id];
+      const isUnlocked = Boolean(data);
+      const card = document.createElement("div");
+      card.className = `zukan-item ${isUnlocked ? (q.isHallucination ? "is-lie" : "is-truth") : "locked"}`;
+
+      if (!isUnlocked) {
+        card.innerHTML = `
+          <div class="zukan-item-header">
+            <span class="zukan-item-cat">${q.category}</span>
+            <span style="font-size:0.68rem; color:#888;">🔒 未解放</span>
+          </div>
+          <div class="zukan-item-statement" style="color:#888; font-weight:normal;">
+            ？？？（クイズで出会うと解放されます）
+          </div>
+        `;
+      } else {
+        const typeBadge = q.isHallucination ? "🚨 ねーちゃんの嘘" : "✨ ガチ事実";
+        const badgeClass = q.isHallucination ? "lie-badge" : "truth-badge";
+        const cleanExp = (q.explanation || "").replace(/^【.*?】\s*/, "");
+        card.innerHTML = `
+          <div class="zukan-item-header">
+            <span class="zukan-item-cat">${q.category}</span>
+            <span class="zukan-item-badge ${badgeClass}">${typeBadge}</span>
+          </div>
+          <div class="zukan-item-statement">
+            「${q.statement}」
+          </div>
+          <div class="zukan-item-exp">
+            <strong>💡 スマホ調査メモ:</strong> ${cleanExp}
+          </div>
+          <div style="font-size:0.66rem; color:#888; margin-top:6px; display:flex; gap:10px;">
+            <span>遭遇: <strong>${data.seen}回</strong></span>
+            <span>見破り: <strong>${data.correct || 0}回</strong></span>
+            <span>騙され: <strong style="color:#e11d48;">${data.wrong || 0}回</strong></span>
+          </div>
+        `;
+      }
+      el.zukanList.appendChild(card);
+    });
+  }
+
+  // ===== 結果シェア機能 =====
+  function shareResult() {
+    const total = state.deck.length;
+    const halluTotal = state.deck.filter(q => q.isHallucination).length || 1;
+    const gullibilityPct = Math.round((state.trickedByLieCount / halluTotal) * 100);
+    const emojiRow = state.history.map(h => (h.isCorrect ? "⭕" : "❌")).join("");
+    const modeName = state.isDailyMode ? `📅 今日の7問 (${getTodayKey()})` : "🌸 通常モード";
+    const rankTitle = el.resultRankTitle ? el.resultRankTitle.textContent.split("：")[0] : "診断完了";
+
+    const shareText = [
+      `【はるしねーちゃん 診断結果】`,
+      `${modeName}`,
+      `結果: ${state.score} / ${total} 正解 (${rankTitle})`,
+      `騙され度: ${gullibilityPct}%`,
+      `${emojiRow}`,
+      ``,
+      `#はるしねーちゃん #クイズ`,
+      `https://shinpoyo.com/`
+    ].join("\n");
+
+    if (navigator.share) {
+      navigator.share({
+        title: "はるしねーちゃん クイズ結果",
+        text: shareText,
+        url: "https://shinpoyo.com/"
+      }).catch(() => {});
+    } else if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(shareText).then(() => {
+        const orig = el.btnShareResult.textContent;
+        el.btnShareResult.textContent = "📋 結果をコピーしました！";
+        setTimeout(() => {
+          el.btnShareResult.textContent = orig;
+        }, 2500);
+      }).catch(() => {
+        prompt("結果テキストをコピーしてください:", shareText);
+      });
+    } else {
+      prompt("結果テキストをコピーしてください:", shareText);
+    }
   }
 
   function openSettingsModal() {

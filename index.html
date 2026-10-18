@@ -81,6 +81,16 @@
               <span class="btn-main-text">🎮 ゲームを始める（7問勝負）</span>
               <span class="btn-sub-text">ねーちゃんの雑学をスマホでファクトチェック！</span>
             </button>
+            <div class="sub-mode-row">
+              <button class="secondary-btn" id="btnStartDaily">
+                <span class="btn-main-text">📅 今日の7問</span>
+                <span class="btn-sub-text" id="dailyStatusText">みんな共通の問題！</span>
+              </button>
+              <button class="secondary-btn" id="btnOpenZukan">
+                <span class="btn-main-text">📖 嘘図鑑</span>
+                <span class="btn-sub-text" id="zukanProgressText">0 / 100 問</span>
+              </button>
+            </div>
           </div>
 
           <div class="lifetime-stats" id="lifetimeStats">
@@ -177,6 +187,8 @@
             <div class="history-list" id="resultHistoryList"></div>
           </div>
 
+          <button class="primary-btn share-btn" id="btnShareResult">📤 結果をシェアする（ネタバレなし）</button>
+
           <div class="result-actions">
             <button class="primary-btn" id="btnRetrySame">🔄 もう一回遊ぶ</button>
             <button class="secondary-btn" id="btnBackToTitle">🏠 タイトルへ戻る</button>
@@ -184,6 +196,24 @@
         </div>
       </section>
     </main>
+
+    <!-- ===== 嘘図鑑モーダル ===== -->
+    <div class="modal-backdrop hidden" id="zukanModal">
+      <div class="modal-card zukan-card">
+        <div class="modal-header">
+          <h3>📖 嘘図鑑 <span class="zukan-count" id="zukanCount">0 / 100</span></h3>
+          <button class="close-modal-btn" id="btnCloseZukan">✕</button>
+        </div>
+        <div class="zukan-stats" id="zukanStats"></div>
+        <div class="zukan-tabs" id="zukanTabs">
+          <button class="zukan-tab active" data-filter="all">すべて</button>
+          <button class="zukan-tab" data-filter="lie">🚨 嘘</button>
+          <button class="zukan-tab" data-filter="truth">✨ ホント</button>
+          <button class="zukan-tab" data-filter="miss">😵 間違えた</button>
+        </div>
+        <div class="zukan-list" id="zukanList"></div>
+      </div>
+    </div>
 
     <!-- ===== 設定モーダル ===== -->
     <div class="modal-backdrop hidden" id="settingsModal">
