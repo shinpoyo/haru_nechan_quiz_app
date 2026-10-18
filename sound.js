@@ -15,7 +15,7 @@ class HaruSoundEngine {
     this.isVoicePlaying = false;
     this.bufferCache = new Map();
     this.speakReqId = 0;
-    this.cacheVersion = "20261018_4";
+    this.cacheVersion = "20261018_6";
   }
 
   initContext() {
