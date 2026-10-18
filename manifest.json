@@ -1,17 +1,23 @@
 {
-  "name": "はるしねーちゃん 〜お姉ちゃんの知ったかぶり見破りクイズ〜",
+  "name": "はるしねーちゃん 〜ねーちゃんの知ったかぶり見破りクイズ〜",
   "short_name": "はるしねーちゃん",
-  "description": "自信満々にハルシネーション（もっともらしい嘘）とガチ雑学を話すお姉ちゃんを見破るノベル風クイズゲーム",
+  "description": "ねーちゃんが自信満々に語る雑学は、嘘（ハルシネーション）？それともホント？スマホでこっそり裏取りして見破る、フルボイスのノベル風クイズゲーム。",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#fff5f7",
   "theme_color": "#ff6b9d",
   "orientation": "portrait-primary",
+  "lang": "ja",
   "icons": [
     {
-      "src": "assets/haru_normal.jpg",
+      "src": "assets/icon_192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/icon_512.png",
       "sizes": "512x512",
-      "type": "image/jpeg"
+      "type": "image/png"
     }
   ]
 }
