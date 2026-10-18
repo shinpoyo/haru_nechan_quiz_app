@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261018_1" />
+  <link rel="stylesheet" href="style.css?v=20261018_5" />
 </head>
 <body>
   <div class="app-shell">
@@ -106,10 +106,6 @@
               <span class="phone-point-tag" id="pointChip">嘘ポイント</span>
             </div>
             <p class="phone-explanation-text" id="phoneExplanationText"></p>
-            <button class="ossan-trigger-btn hidden" id="btnOpenOssan" type="button">
-              <span class="ossan-btn-icon">👓</span>
-              <span>なぜこんなハルシネーションが起きた？（解説を見る）</span>
-            </button>
           </div>
         </div>
 
@@ -174,28 +170,6 @@
       </section>
     </main>
 
-    <!-- ===== 厄介な小太りメガネのオッサン：ハルシネーション仕組み解説オーバーレイ ===== -->
-    <div class="modal-backdrop ossan-backdrop hidden" id="ossanModal">
-      <div class="ossan-stage-card" id="ossanCard">
-        <div class="ossan-portrait-area">
-          <img src="assets/ossan_explain.jpg?v=20261018_1" alt="解説おじさん" class="ossan-portrait-img" />
-          <div class="ossan-cutin-badge">👓 知識ひけらかしオジサンの割り込み解説！</div>
-          <button class="ossan-close-top-btn" id="btnCloseOssanTop" title="閉じる">✕</button>
-        </div>
-
-        <div class="ossan-dialogue-box">
-          <div class="ossan-header-row">
-            <span class="ossan-nameplate">👓 厄介な解説おじさん（自称AI通）</span>
-            <span class="ossan-type-badge" id="ossanHalluType">発生メカニズム</span>
-          </div>
-          <p class="ossan-reason-text" id="ossanHalluReason"></p>
-          <button class="ossan-close-btn" id="btnCloseOssan" type="button">
-            👌 なるほど！（閉じてねーちゃんの画面に戻る）
-          </button>
-        </div>
-      </div>
-    </div>
-
     <!-- ===== 設定モーダル ===== -->
     <div class="modal-backdrop hidden" id="settingsModal">
       <div class="modal-card">
@@ -236,8 +210,8 @@
     </div>
   </div>
 
-  <script src="questions.js?v=20261018_4"></script>
-  <script src="sound.js?v=20261018_4"></script>
-  <script src="app.js?v=20261018_4"></script>
+  <script src="questions.js?v=20261018_5"></script>
+  <script src="sound.js?v=20261018_5"></script>
+  <script src="app.js?v=20261018_5"></script>
 </body>
 </html>
