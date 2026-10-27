@@ -34,15 +34,15 @@
       <!-- 背景＆立ち絵レイヤー（10表情のクロスフェード） -->
       <div class="character-viewport" id="charViewport">
         <img src="assets/haru_normal.webp" alt="春野詩音 通常" class="char-layer active" data-expr="normal" decoding="async" />
-        <img src="assets/haru_doya.webp" alt="春野詩音 ドヤ顔" class="char-layer" data-expr="doya" decoding="async" />
-        <img src="assets/haru_tehe.webp" alt="春野詩音 てへぺろ" class="char-layer" data-expr="tehe" decoding="async" />
-        <img src="assets/haru_happy.webp" alt="春野詩音 笑顔" class="char-layer" data-expr="happy" decoding="async" />
-        <img src="assets/haru_pout.webp" alt="春野詩音 むーっ" class="char-layer" data-expr="pout" decoding="async" />
-        <img src="assets/haru_shock.webp" alt="春野詩音 ガーン・びっくり" class="char-layer" data-expr="shock" decoding="async" />
-        <img src="assets/haru_shy.webp" alt="春野詩音 赤面・照れ隠し" class="char-layer" data-expr="shy" decoding="async" />
-        <img src="assets/haru_cry.webp" alt="春野詩音 うるうる・泣きべそ" class="char-layer" data-expr="cry" decoding="async" />
-        <img src="assets/haru_confused.webp" alt="春野詩音 あれれ・疑問" class="char-layer" data-expr="confused" decoding="async" />
-        <img src="assets/haru_wink.webp" alt="春野詩音 ウインク・ピース" class="char-layer" data-expr="wink" decoding="async" />
+        <img data-src="assets/haru_doya.webp" alt="春野詩音 ドヤ顔" class="char-layer" data-expr="doya" decoding="async" />
+        <img data-src="assets/haru_tehe.webp" alt="春野詩音 てへぺろ" class="char-layer" data-expr="tehe" decoding="async" />
+        <img data-src="assets/haru_happy.webp" alt="春野詩音 笑顔" class="char-layer" data-expr="happy" decoding="async" />
+        <img data-src="assets/haru_pout.webp" alt="春野詩音 むーっ" class="char-layer" data-expr="pout" decoding="async" />
+        <img data-src="assets/haru_shock.webp" alt="春野詩音 ガーン・びっくり" class="char-layer" data-expr="shock" decoding="async" />
+        <img data-src="assets/haru_shy.webp" alt="春野詩音 赤面・照れ隠し" class="char-layer" data-expr="shy" decoding="async" />
+        <img data-src="assets/haru_cry.webp" alt="春野詩音 うるうる・泣きべそ" class="char-layer" data-expr="cry" decoding="async" />
+        <img data-src="assets/haru_confused.webp" alt="春野詩音 あれれ・疑問" class="char-layer" data-expr="confused" decoding="async" />
+        <img data-src="assets/haru_wink.webp" alt="春野詩音 ウインク・ピース" class="char-layer" data-expr="wink" decoding="async" />
       </div>
 
       <!-- フローティング上部HUD -->
@@ -255,8 +255,21 @@
     </div>
   </div>
 
-  <script src="questions.js?v=20261018_7"></script>
-  <script src="sound.js?v=20261018_7"></script>
-  <script src="app.js?v=20261018_7"></script>
+    <script>
+    // 通常の顔以外の立ち絵は、画面が出たあとに読み込む（最初の表示を軽くする）
+    window.addEventListener("load", function () {
+      var go = function () {
+        document.querySelectorAll("img[data-src]").forEach(function (img) {
+          img.src = img.dataset.src;
+          img.removeAttribute("data-src");
+        });
+      };
+      if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 2000 });
+      else setTimeout(go, 500);
+    });
+  </script>
+  <script src="questions.js?v=20261027_1"></script>
+  <script src="sound.js?v=20261027_1"></script>
+  <script src="app.js?v=20261027_1"></script>
 </body>
 </html>
