@@ -25,7 +25,7 @@ const VALID_EXPRESSIONS = new Set([
 // 2. 「お姉ちゃん」呼び（本アプリでは「ねーちゃん」に統一）
 const FORBIDDEN_WORDS = [
   { pattern: /弟|妹/, reason: 'プレイヤーとの関係性決めつけ（関係性は謎・ねーちゃんが好きな誰か）' },
-  { pattern: /お姉ちゃん/, reason: '一人称表記揺れ（「ねーちゃん」に統一）' }
+  { pattern: /お姉ちゃん|ねーちゃん/, reason: '一人称エラー: 春野詩音の一人称は「私」です（「お姉ちゃん」や「ねーちゃん」を一人称として使用するのは禁止）' }
 ];
 
 function validate() {

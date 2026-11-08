@@ -76,8 +76,8 @@ function validateNewQuestion(q, index) {
   if (/弟|妹/.test(fullText)) {
     throw new Error(`${prefix} 禁止ワード検出: 「弟」「妹」などの関係性決めつけワードは使用禁止です。（関係性は謎・ねーちゃんが好きな誰か）`);
   }
-  if (/お姉ちゃん/.test(fullText)) {
-    throw new Error(`${prefix} 禁止ワード検出: 一人称は「ねーちゃん」または「私」に統一してください（「お姉ちゃん」は禁止）。`);
+  if (/お姉ちゃん|ねーちゃん/.test(fullText)) {
+    throw new Error(`${prefix} 禁止ワード検出: 春野詩音の一人称は「私」です（「お姉ちゃん」や「ねーちゃん」を一人称として使用することは禁止。「ねーちゃん」はプレイヤーからの愛称です）。`);
   }
 }
 
