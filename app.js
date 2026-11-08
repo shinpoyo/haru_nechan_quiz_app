@@ -855,7 +855,7 @@
 
     const zukanData = getZukanStorage();
     const unlockedCount = Object.keys(zukanData).length;
-    const totalQ = (window.HARU_QUESTIONS && window.HARU_QUESTIONS.length) || 300;
+    const totalQ = (window.HARU_QUESTIONS && window.HARU_QUESTIONS.length) || 500;
     if (el.zukanProgressText) {
       el.zukanProgressText.textContent = `${unlockedCount} / ${totalQ} 解放済み`;
     }
