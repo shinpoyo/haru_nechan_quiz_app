@@ -1,21 +1,11 @@
-// はるしねーちゃん サウンド＆フルボイス再生エンジン（事前収録フルボイス＆高品位SE）
+// はるしねーちゃん サウンドエンジン（モダン・ノベルゲーム風 高品位SE＆心地よい文字送り音）
 
 class HaruSoundEngine {
   constructor() {
     this.ctx = null;
     this.seEnabled = localStorage.getItem("haru_se_enabled") !== "false";
-    this.voiceEnabled = localStorage.getItem("haru_voice_enabled") !== "false";
-
-    this.voicePitch = 1.12;
-    this.voiceRate = 1.06;
-
-    this.currentAudio = null;
-    this.currentSource = null;
-    this.segmentTimer = null;
+    this.voiceEnabled = false;
     this.isVoicePlaying = false;
-    this.bufferCache = new Map();
-    this.speakReqId = 0;
-    this.cacheVersion = "20261027_1";
   }
 
   initContext() {
@@ -35,10 +25,8 @@ class HaruSoundEngine {
     localStorage.setItem("haru_se_enabled", String(val));
   }
 
-  setVoiceEnabled(val) {
-    this.voiceEnabled = val;
-    localStorage.setItem("haru_voice_enabled", String(val));
-    if (!val) this.stopSpeak();
+  setVoiceEnabled(_val) {
+    this.voiceEnabled = false;
   }
 
   // ===== モダン・ノベルゲーム風 高品位サウンドエフェクト（FM倍音＋フィルタ＋残響合成） =====
@@ -83,36 +71,52 @@ class HaruSoundEngine {
     masterGain.connect(this.ctx.destination);
   }
 
-  // 文字送り音（フルボイスを邪魔しない極小・上質なコトッというソフトタップ音）
+  // 文字送り音（心地よいノベルゲーム風のポポポッ・コロン系ソフトマリンバ音）
   playBlip(pitchOffset = 0) {
     if (!this.seEnabled) return;
-    if (this.voiceEnabled && (this.isVoicePlaying || (this.currentAudio && !this.currentAudio.paused))) return;
 
     this.initContext();
     if (!this.ctx) return;
 
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
+    const subOsc = this.ctx.createOscillator();
     const filter = this.ctx.createBiquadFilter();
     const gain = this.ctx.createGain();
+    const subGain = this.ctx.createGain();
+
+    // 耳に優しく温かみのある中高音域（ペンタトニック風の自然な揺らぎ）
+    const offsets = [0, 45, 95, 30];
+    const baseFreq = 820 + (offsets[pitchOffset % offsets.length] || 0);
 
     osc.type = "sine";
-    const baseFreq = 980 + (pitchOffset % 3) * 45;
     osc.frequency.setValueAtTime(baseFreq, now);
-    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.6, now + 0.022);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.68, now + 0.028);
+
+    subOsc.type = "triangle";
+    subOsc.frequency.setValueAtTime(baseFreq * 1.5, now);
+    subOsc.frequency.exponentialRampToValueAtTime(baseFreq, now + 0.02);
+
+    subGain.gain.setValueAtTime(0.22, now);
+    subGain.gain.exponentialRampToValueAtTime(0.01, now + 0.02);
 
     filter.type = "lowpass";
-    filter.frequency.setValueAtTime(1600, now);
+    filter.frequency.setValueAtTime(2100, now);
 
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.linearRampToValueAtTime(0.018, now + 0.002);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.024);
+    gain.gain.linearRampToValueAtTime(0.042, now + 0.003);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.032);
 
     osc.connect(filter);
+    subOsc.connect(subGain);
+    subGain.connect(filter);
     filter.connect(gain);
     gain.connect(this.ctx.destination);
+
     osc.start(now);
-    osc.stop(now + 0.026);
+    subOsc.start(now);
+    osc.stop(now + 0.035);
+    subOsc.stop(now + 0.025);
   }
 
   // ボタンタップ・ページ送り音（澄んだガラス・マリンバ系「コロンッ」音）
@@ -196,242 +200,20 @@ class HaruSoundEngine {
     this._playBellNote(2349.32, now + 0.50, 0.65, 0.045, 7500);
   }
 
-  cleanTextForSpeech(text) {
-    return text
-      .replace(/【.*?】/g, "")
-      .replace(/^「|」$/g, "")
-      .replace(/お姉ちゃん「|」/g, "")
-      .replace(/[✨🎵♪🐙🪐🍌🎓🦋🦦💎🥩🍓🐦💨🎯😈💦🚨👑🐣🍮]/g, "")
-      .trim();
-  }
-
   stopSpeak() {
-    this.speakReqId++;
     this.isVoicePlaying = false;
-    if (this.segmentTimer) {
-      clearTimeout(this.segmentTimer);
-      clearInterval(this.segmentTimer);
-      this.segmentTimer = null;
-    }
-    if (this.currentSource) {
-      try {
-        this.currentSource.onended = null;
-        this.currentSource.stop();
-        this.currentSource.disconnect();
-      } catch (e) {}
-      this.currentSource = null;
-    }
-    if (this.currentAudio) {
-      this.currentAudio.pause();
-      this.currentAudio.currentTime = 0;
-      this.currentAudio = null;
-    }
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
   }
 
-  async _loadAudioBuffer(pregenKey) {
-    if (!this.ctx) return null;
-    if (this.bufferCache.has(pregenKey)) {
-      return this.bufferCache.get(pregenKey);
-    }
-    const url = `assets/voices_aoede/${pregenKey}.mp3?v=${this.cacheVersion}`;
-    try {
-      const resp = await fetch(url);
-      if (!resp.ok) return null;
-      const arrBuf = await resp.arrayBuffer();
-      const audioBuf = await this.ctx.decodeAudioData(arrBuf);
-      // メモリ肥大化防止（直近12件までキャッシュ保持）
-      if (this.bufferCache.size >= 12) {
-        const oldestKey = this.bufferCache.keys().next().value;
-        this.bufferCache.delete(oldestKey);
-      }
-      this.bufferCache.set(pregenKey, audioBuf);
-      return audioBuf;
-    } catch (e) {
-      return null;
-    }
+  preloadQuestionVoices(_qid) {
+    // ボイス機能オフのため何もしない（通信量ゼロ）
   }
 
-  // 問題開始時に _q, _h, _r の音声バッファを先読みしてページめくり時のラグをゼロにする
-  preloadQuestionVoices(qid) {
-    if (!this.voiceEnabled || !qid) return;
-    this.initContext();
-    if (!this.ctx) return;
-    ["q", "h", "r"].forEach((suffix) => {
-      this._loadAudioBuffer(`${qid}_${suffix}`);
-    });
+  async speakSegment(_pregenKey, _startSec = 0, _endSec = null, _onEnded = null) {
+    // ボイス機能オフのため何もしない
   }
 
-  // ページ単位の音声区間再生（startSec 〜 endSec まで再生してピタッと止める）
-  // ページ単位の音声区間再生（startSec 〜 endSec まで再生してピタッと止める）
-  async speakSegment(pregenKey, startSec = 0, endSec = null, onEnded = null) {
-    if (!this.voiceEnabled || !pregenKey) return;
-
-    this.stopSpeak();
-    this.initContext();
-    const reqId = this.speakReqId;
-
-    // 1. Web Audio API によるサンプル精度＆ゼロ遅延の区間再生
-    if (this.ctx) {
-      const audioBuf = await this._loadAudioBuffer(pregenKey);
-      if (reqId !== this.speakReqId) return;
-
-      if (audioBuf) {
-        const safeStart = Math.max(0, Math.min(startSec || 0, Math.max(0, audioBuf.duration - 0.05)));
-        const safeEnd = (endSec !== null && endSec !== undefined)
-          ? Math.min(audioBuf.duration, Math.max(safeStart + 0.05, endSec))
-          : audioBuf.duration;
-        const duration = Math.max(0.05, safeEnd - safeStart);
-
-        const source = this.ctx.createBufferSource();
-        source.buffer = audioBuf;
-
-        // ページ区切りでのプチッというクリックノイズを防ぐ微小フェード処理
-        const gainNode = this.ctx.createGain();
-        const now = this.ctx.currentTime;
-        const fadeIn = safeStart > 0.02 ? Math.min(0.015, duration * 0.2) : 0.004;
-        const fadeOut = Math.min(0.025, duration * 0.2);
-
-        gainNode.gain.setValueAtTime(0.0001, now);
-        gainNode.gain.linearRampToValueAtTime(1.0, now + fadeIn);
-        if (duration > fadeIn + fadeOut) {
-          gainNode.gain.setValueAtTime(1.0, now + duration - fadeOut);
-          gainNode.gain.linearRampToValueAtTime(0.0001, now + duration);
-        }
-
-        source.connect(gainNode);
-        gainNode.connect(this.ctx.destination);
-
-        this.currentSource = source;
-        this.isVoicePlaying = true;
-
-        let endedFired = false;
-        const triggerEnded = () => {
-          if (!endedFired && reqId === this.speakReqId) {
-            endedFired = true;
-            this.currentSource = null;
-            this.isVoicePlaying = false;
-            if (typeof onEnded === "function") {
-              onEnded();
-            }
-          }
-        };
-
-        source.onended = () => {
-          if (this.currentSource === source) {
-            triggerEnded();
-          }
-        };
-
-        source.start(now, safeStart, duration);
-        source.stop(now + duration);
-
-        // モバイル・特定ブラウザでのduration未対応や音声 offload に備えた絶対停止タイマー
-        this.segmentTimer = setTimeout(() => {
-          if (this.currentSource === source && reqId === this.speakReqId) {
-            triggerEnded();
-            this.stopSpeak();
-          }
-        }, Math.ceil(duration * 1000) + 15);
-        return;
-      }
-    }
-
-    // 2. フォールバック: HTMLAudioElement による区間再生（ローカル file:// 環境等）
-    await this.tryPlayFile(`assets/voices_aoede/${pregenKey}.mp3`, reqId, startSec, endSec, onEnded);
-  }
-
-  async tryPlayFile(path, reqId, startSec = 0, endSec = null, onEnded = null) {
-    return new Promise((resolve) => {
-      if (reqId !== this.speakReqId) {
-        resolve(true);
-        return;
-      }
-      const cacheBustedPath = `${path}?v=${this.cacheVersion}`;
-      const audio = new Audio(cacheBustedPath);
-      audio.preload = "auto";
-      this.currentAudio = audio;
-
-      let settled = false;
-      const finish = (ok) => {
-        if (!settled) {
-          settled = true;
-          resolve(ok);
-        }
-      };
-
-      let endedFired = false;
-      const triggerEnded = () => {
-        if (!endedFired && reqId === this.speakReqId) {
-          endedFired = true;
-          this.isVoicePlaying = false;
-          if (typeof onEnded === "function") {
-            onEnded();
-          }
-        }
-      };
-
-      audio.onerror = () => {
-        this.isVoicePlaying = false;
-        finish(false);
-      };
-      audio.onended = () => {
-        triggerEnded();
-      };
-
-      const startPlayback = () => {
-        if (reqId !== this.speakReqId) {
-          audio.pause();
-          finish(true);
-          return;
-        }
-        if (startSec && startSec > 0) {
-          try {
-            audio.currentTime = startSec;
-          } catch (e) {}
-        }
-        if (endSec !== null && endSec !== undefined) {
-          const duration = Math.max(0.05, endSec - (startSec || 0));
-          this.segmentTimer = setTimeout(() => {
-            if (reqId === this.speakReqId && this.currentAudio === audio) {
-              audio.pause();
-              triggerEnded();
-            }
-          }, Math.ceil(duration * 1000));
-        }
-        this.isVoicePlaying = true;
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise.then(() => {
-            if (reqId !== this.speakReqId) {
-              audio.pause();
-              this.isVoicePlaying = false;
-            }
-            finish(true);
-          }).catch(() => {
-            this.isVoicePlaying = false;
-            finish(false);
-          });
-        } else {
-          finish(true);
-        }
-      };
-
-      if (startSec && startSec > 0 && audio.readyState < 1) {
-        audio.addEventListener("loadedmetadata", startPlayback, { once: true });
-        audio.load();
-      } else {
-        startPlayback();
-      }
-    });
-  }
-
-  // 音声再生メインエントリ（後方互換）
-  async speak(text, mood = "normal", pregenKey = "") {
-    if (!this.voiceEnabled || !pregenKey) return;
-    await this.speakSegment(pregenKey, 0, null);
+  async speak(_text, _mood = "normal", _pregenKey = "") {
+    // ボイス機能オフのため何もしない
   }
 }
 

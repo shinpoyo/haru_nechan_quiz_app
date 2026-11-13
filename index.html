@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#ff6b9d" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>はるしねーちゃん 〜ねーちゃんの知ったかぶり見破りクイズ〜</title>
-  <meta name="description" content="ねーちゃんが自信満々に語る雑学は、嘘（ハルシネーション）？それともホント？スマホでこっそり裏取りして見破る、フルボイスのノベル風クイズゲーム。" />
+  <meta name="description" content="ねーちゃんが自信満々に語る雑学は、嘘（ハルシネーション）？それともホント？スマホでこっそり裏取りして見破る、ノベル風雑学クイズゲーム。" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://shinpoyo.com/haru_nechan_quiz_app/" />
   <meta property="og:title" content="はるしねーちゃん 〜ねーちゃんの知ったかぶり見破りクイズ〜" />
@@ -57,8 +57,7 @@
         </div>
 
         <div class="hud-right">
-          <button class="hud-icon-btn" id="btnToggleVoice" title="ボイス読み上げ ON/OFF" aria-label="ボイス切替">🔊</button>
-          <button class="hud-icon-btn" id="btnToggleSE" title="効果音 ON/OFF" aria-label="効果音切替">🎵</button>
+          <button class="hud-icon-btn" id="btnToggleSE" title="効果音・文字送り音 ON/OFF" aria-label="効果音切替">🔊</button>
           <button class="hud-icon-btn" id="btnOpenSettings" title="ウィンドウ透過度・音量設定" aria-label="設定を開く">⚙️</button>
         </div>
       </header>
@@ -143,7 +142,6 @@
 
             <div class="vn-meta-controls">
               <span class="vn-category-pill" id="categoryTag">雑学</span>
-              <button class="vn-mini-btn" id="btnReplayVoice" title="ボイスをもう一回聴く">🔊</button>
             </div>
           </div>
 
@@ -236,13 +234,9 @@
           <hr class="modal-divider" />
 
           <div class="setting-group">
-            <label class="setting-label">🔊 音量・ON/OFF設定</label>
+            <label class="setting-label">🔊 サウンド設定</label>
             <div class="toggle-row">
-              <span>ボイス読み上げ</span>
-              <input type="checkbox" id="chkVoice" checked />
-            </div>
-            <div class="toggle-row">
-              <span>効果音（SE）</span>
+              <span>効果音・文字送り音（SE）</span>
               <input type="checkbox" id="chkSE" checked />
             </div>
           </div>
@@ -268,8 +262,8 @@
       else setTimeout(go, 500);
     });
   </script>
-  <script src="questions.js?v=20261027_1"></script>
-  <script src="sound.js?v=20261027_1"></script>
-  <script src="app.js?v=20261027_1"></script>
+  <script src="questions.js?v=20261113_1"></script>
+  <script src="sound.js?v=20261113_1"></script>
+  <script src="app.js?v=20261113_1"></script>
 </body>
 </html>

@@ -100,16 +100,20 @@
       showTitleScreen();
     });
 
-    el.btnToggleVoice.addEventListener("click", () => {
-      window.haruSound.setVoiceEnabled(!window.haruSound.voiceEnabled);
-      updateTopBarIcons();
-    });
+    if (el.btnToggleVoice) {
+      el.btnToggleVoice.addEventListener("click", () => {
+        window.haruSound.setVoiceEnabled(!window.haruSound.voiceEnabled);
+        updateTopBarIcons();
+      });
+    }
 
-    el.btnToggleSE.addEventListener("click", () => {
-      window.haruSound.setSEEnabled(!window.haruSound.seEnabled);
-      window.haruSound.playClick();
-      updateTopBarIcons();
-    });
+    if (el.btnToggleSE) {
+      el.btnToggleSE.addEventListener("click", () => {
+        window.haruSound.setSEEnabled(!window.haruSound.seEnabled);
+        window.haruSound.playClick();
+        updateTopBarIcons();
+      });
+    }
 
     el.btnOpenSettings.addEventListener("click", () => {
       window.haruSound.playClick();
@@ -194,12 +198,12 @@
       });
     }
 
-    el.btnReplayVoice.addEventListener("click", (e) => {
-      e.stopPropagation();
-      window.haruSound.setVoiceEnabled(true);
-      updateTopBarIcons();
-      playCurrentPageVoice();
-    });
+    if (el.btnReplayVoice) {
+      el.btnReplayVoice.addEventListener("click", (e) => {
+        e.stopPropagation();
+        playCurrentPageVoice();
+      });
+    }
 
     el.btnChooseHallucination.addEventListener("click", () => submitAnswer(true));
     el.btnChooseTruth.addEventListener("click", () => submitAnswer(false));
@@ -232,9 +236,14 @@
   }
 
   function updateTopBarIcons() {
-    el.btnToggleVoice.classList.toggle("muted", !window.haruSound.voiceEnabled);
-    el.btnToggleVoice.textContent = window.haruSound.voiceEnabled ? "🔊" : "🔇";
-    el.btnToggleSE.classList.toggle("muted", !window.haruSound.seEnabled);
+    if (el.btnToggleVoice) {
+      el.btnToggleVoice.classList.toggle("muted", !window.haruSound.voiceEnabled);
+      el.btnToggleVoice.textContent = window.haruSound.voiceEnabled ? "🔊" : "🔇";
+    }
+    if (el.btnToggleSE) {
+      el.btnToggleSE.classList.toggle("muted", !window.haruSound.seEnabled);
+      el.btnToggleSE.textContent = window.haruSound.seEnabled ? "🔊" : "🔇";
+    }
   }
 
   function updateLifetimeStatsUI() {
@@ -414,53 +423,7 @@
   }
 
   function playCurrentPageVoice() {
-    if (!state.currentPregenKey) return;
-    const q = state.deck[state.currentIndex];
-    const m = state.currentPregenKey.match(/_([qhr])$/);
-    const suffix = m ? m[1] : "";
-    let bounds = (q && q.pageBounds && suffix && Array.isArray(q.pageBounds[suffix]))
-      ? q.pageBounds[suffix]
-      : null;
-    const totalPages = state.pages.length;
-    const idx = state.pageIndex;
-
-    if (totalPages > 1 && (!bounds || bounds.length !== totalPages - 1)) {
-      // 境界値が未登録の場合の安全な文字数比率フォールバック
-      const pageLens = state.pages.map(p => Math.max(1, p.length));
-      const totalChars = pageLens.reduce((a, b) => a + b, 0);
-      const estTotalSec = totalChars * 0.165;
-      bounds = [];
-      let cum = 0;
-      for (let i = 0; i < totalPages - 1; i++) {
-        cum += pageLens[i];
-        bounds.push(Number((estTotalSec * (cum / totalChars)).toFixed(2)));
-      }
-    }
-
-    const currentKey = state.currentPregenKey;
-    const pageAtCall = idx;
-
-    const onSegmentEnded = () => {
-      // 音声が現在のページの末尾まで自然に到達した時、自動で次ページへめくる
-      // （手動タップなしでも会話が途切れず流れるように進み、繰り返しがゼロになる）
-      if (state.currentPregenKey === currentKey && state.pageIndex === pageAtCall) {
-        if (state.pageIndex < state.pages.length - 1) {
-          state.pageIndex++;
-          showCurrentPage();
-        }
-      }
-    };
-
-    if (totalPages <= 1) {
-      if (idx === 0) {
-        window.haruSound.speakSegment(state.currentPregenKey, 0, null, onSegmentEnded);
-      }
-      return;
-    }
-
-    const startSec = idx === 0 ? 0 : bounds[idx - 1];
-    const endSec = idx < bounds.length ? bounds[idx] : null;
-    window.haruSound.speakSegment(state.currentPregenKey, startSec, endSec, onSegmentEnded);
+    // ボイス機能はオフ（ノベルゲーム風の文字送り音に統一）
   }
 
   function startPagedDialogue(fullText, mood, phase, pregenKey = "") {
@@ -482,8 +445,6 @@
     state.fullCurrentText = pageText;
     el.dialogueText.textContent = "";
 
-    playCurrentPageVoice();
-
     const isLastPage = state.pageIndex >= state.pages.length - 1;
     updateFooterIndicator(isLastPage);
 
@@ -500,9 +461,10 @@
     let idx = 0;
     state.typingTimer = setInterval(() => {
       if (idx < pageText.length) {
-        el.dialogueText.textContent += pageText[idx];
-        if (idx % 3 === 0) {
-          window.haruSound.playBlip(idx % 4);
+        const ch = pageText[idx];
+        el.dialogueText.textContent += ch;
+        if (idx % 3 === 0 && !/[、。！？…〜\s「」『』（）()]/.test(ch)) {
+          window.haruSound.playBlip(idx);
         }
         idx++;
       } else {
@@ -553,9 +515,6 @@
 
     // 最後のページの場合の進行処理
     if (state.phase === "question") {
-      // 最後のページでは回答選択肢がすでに表示されているため、
-      // テキストボックスタップによる先頭ループ（再読み上げの繰り返し）は行わない
-      // （※もう一度聴き直したい場合は右上の🔊ボタンで可能）
       return;
     } else {
       window.haruSound.playClick();
@@ -590,27 +549,9 @@
     updateTitleScreenBadges();
   }
 
-  // フルボイス（_q, _h, _r の3種すべて）が収録済みの問題ID判定
-  const FULL_VOICE_NUMS = new Set([
-    1, 2, 3, 4, 6, 7, 8, 9, 11, 13, 15, 16, 17, 18, 20, 21, 22, 23, 24, 25, 26, 27, 28, 30,
-    31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
-    51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70,
-    71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 84, 86
-  ]);
-  function hasFullVoice(qid) {
-    if (!qid) return false;
-    const num = parseInt(qid.replace("q", ""), 10);
-    return FULL_VOICE_NUMS.has(num);
-  }
-
   function startCuratedGame(count) {
     state.lastModeCount = count;
-    const allPool = [...window.HARU_QUESTIONS];
-    // ボイスON時は、途中で声が出なくなるのを防ぐためフルボイス完備の問題から出題
-    const voicedPool = allPool.filter(q => hasFullVoice(q.id));
-    const pool = (window.haruSound && window.haruSound.voiceEnabled && voicedPool.length >= count)
-      ? voicedPool
-      : allPool;
+    const pool = [...window.HARU_QUESTIONS];
     const shuffled = shuffleArray(pool).slice(0, Math.min(count, pool.length));
     beginQuizSession(shuffled);
   }
@@ -640,10 +581,6 @@
 
     if (el.phoneResultCard) {
       el.phoneResultCard.classList.add("hidden");
-    }
-
-    if (q.id && window.haruSound && window.haruSound.preloadQuestionVoices) {
-      window.haruSound.preloadQuestionVoices(q.id);
     }
 
     setSisterExpression("normal");
@@ -760,18 +697,17 @@
       expr = "happy";
     } else if (ratio >= 0.4) {
       rank = "🐣 Bランク：素直で可愛い信じ屋さん";
-      comment = "えへへ〜、ねーちゃんの雑学トークいっぱい聞いてくれてありがとう♪ たまに勘違いも混ざっちゃうけど、もっとお話ししちゃおーっと！";
+      comment = "えへへ〜、私の雑学トークいっぱい聞いてくれてありがとう♪ たまに勘違いも混ざっちゃうけど、もっとお話ししちゃおーっと！";
       expr = "doya";
     } else {
       rank = "🍮 Cランク：ねーちゃん信者（純度100%）";
-      comment = "わーい！ ねーちゃんの話をぜんぶ素直に信じてくれるなんて、世界一ピュアで可愛い〜！ これからも一緒にいっぱい雑学トークしようね♪";
+      comment = "わーい！ 私の話をぜんぶ素直に信じてくれるなんて、世界一ピュアで可愛い〜！ これからも一緒にいっぱい雑学トークしようね♪";
       expr = "doya";
     }
 
     el.resultRankTitle.textContent = rank;
     el.resultSisterComment.textContent = comment;
     setSisterExpression(expr, "anim-happy");
-    window.haruSound.speak(comment, expr);
 
     if (state.isDailyMode) {
       const today = getTodayKey();
@@ -831,11 +767,7 @@
     state.lastModeCount = 7;
     const today = getTodayKey();
     const seed = getSeedFromString(`haru-daily-${today}`);
-    const allPool = [...window.HARU_QUESTIONS];
-    const voicedPool = allPool.filter(q => hasFullVoice(q.id));
-    const pool = (window.haruSound && window.haruSound.voiceEnabled && voicedPool.length >= 7)
-      ? voicedPool
-      : allPool;
+    const pool = [...window.HARU_QUESTIONS];
     const shuffled = seededShuffle(pool, seed).slice(0, 7);
     beginQuizSession(shuffled);
   }
@@ -1003,8 +935,8 @@
   function openSettingsModal() {
     el.rngOpacity.value = String(state.uiOpacityPct);
     el.lblOpacity.textContent = `${state.uiOpacityPct}%`;
-    el.chkVoice.checked = window.haruSound.voiceEnabled;
-    el.chkSE.checked = window.haruSound.seEnabled;
+    if (el.chkVoice) el.chkVoice.checked = window.haruSound.voiceEnabled;
+    if (el.chkSE) el.chkSE.checked = window.haruSound.seEnabled;
     el.settingsModal.classList.remove("hidden");
   }
 
@@ -1013,8 +945,8 @@
     applyUIOpacity(opacityVal);
     localStorage.setItem("haru_ui_opacity", String(opacityVal));
 
-    window.haruSound.setVoiceEnabled(el.chkVoice.checked);
-    window.haruSound.setSEEnabled(el.chkSE.checked);
+    if (el.chkVoice) window.haruSound.setVoiceEnabled(el.chkVoice.checked);
+    if (el.chkSE) window.haruSound.setSEEnabled(el.chkSE.checked);
 
     updateTopBarIcons();
     window.haruSound.stopSpeak();
